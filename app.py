@@ -19,6 +19,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'pet-vet-ai-secret-key-2024')
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'data', 'settings.json')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -26,6 +27,24 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+# Settings management
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE) as f:
+            return json.load(f)
+    return {}
+
+def save_settings(settings):
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f, indent=2)
+
+def get_groq_api_key():
+    """Get API key from settings or environment variable"""
+    settings = load_settings()
+    if settings.get('groq_api_key'):
+        return settings['groq_api_key']
+    return os.environ.get('GROQ_API_KEY', '')
 
 # Groq API Configuration
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
@@ -41,8 +60,9 @@ def analyze_pet_image(image_path, animal_type="dog"):
     Use Groq's vision model to analyze a pet health image
     Returns AI's diagnostic assessment
     """
-    if not GROQ_API_KEY:
-        return {"error": "Groq API key not configured", "success": False}
+    groq_api_key = get_groq_api_key()
+    if not groq_api_key:
+        return {"error": "Groq API key not configured. Go to Settings to add your key.", "success": False}
     
     try:
         # Convert image to base64
@@ -84,7 +104,7 @@ If the image is unclear or not of a pet, return {{"error": "Image unclear or not
         # Call Groq API
         url = "https://api.groq.com/openai/v1/chat/completions"
         headers = {
-            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Authorization": f"Bearer {groq_api_key}",
             "Content-Type": "application/json"
         }
         
@@ -411,6 +431,47 @@ def api_feedback():
 def pets_page():
     """Pet profiles page"""
     return render_template('pets.html')
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings_page():
+    """Settings page for API keys and preferences"""
+    settings = load_settings()
+    
+    if request.method == 'POST':
+        # Update settings
+        new_settings = {
+            'groq_api_key': request.form.get('groq_api_key', ''),
+            'default_animal': request.form.get('default_animal', 'dog'),
+            'ai_enabled': request.form.get('ai_enabled', 'true') == 'true'
+        }
+        
+        # Mask the API key for display (show only first 8 chars)
+        if new_settings['groq_api_key']:
+            settings.update(new_settings)
+            save_settings(settings)
+            flash('Settings saved successfully!', 'success')
+        else:
+            flash('Please enter a valid API key', 'error')
+        
+        settings = load_settings()
+    
+    # Mask API key for display
+    display_settings = settings.copy()
+    if display_settings.get('groq_api_key'):
+        key = display_settings['groq_api_key']
+        display_settings['groq_api_key'] = key[:8] + '...' if len(key) > 8 else '***'
+    
+    return render_template('settings.html', settings=display_settings)
+
+@app.route('/api/settings', methods=['GET'])
+def api_get_settings():
+    """API to check if settings are configured"""
+    settings = load_settings()
+    return jsonify({
+        'configured': bool(settings.get('groq_api_key')),
+        'ai_enabled': settings.get('ai_enabled', True),
+        'default_animal': settings.get('default_animal', 'dog')
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

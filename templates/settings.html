@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings | Pet Vet AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); min-height: 100vh; color: #fff; }
+        
+        .container { max-width: 600px; margin: 0 auto; padding: 2rem 1rem; }
+        h1 { text-align: center; font-size: 2rem; margin-bottom: 0.5rem; }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 2rem; }
+        
+        .settings-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; backdrop-filter: blur(10px); }
+        
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #e2e8f0; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 1rem; }
+        input::placeholder { color: #64748b; }
+        
+        .help-text { font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; }
+        .help-text a { color: #10b981; text-decoration: none; }
+        
+        .toggle-group { display: flex; align-items: center; gap: 1rem; }
+        .toggle { position: relative; width: 50px; height: 26px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: #374151; border-radius: 26px; transition: 0.3s; }
+        .toggle-slider:before { content: ""; position: absolute; height: 20px; width: 20px; left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: 0.3s; }
+        .toggle input:checked + .toggle-slider { background: #10b981; }
+        .toggle input:checked + .toggle-slider:before { transform: translateX(24px); }
+        
+        .btn-save { width: 100%; padding: 1rem; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; margin-top: 1rem; transition: transform 0.2s; }
+        .btn-save:hover { transform: translateY(-2px); }
+        
+        .status-badge { display: inline-block; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem; }
+        .status-badge.configured { background: #10b981; }
+        .status-badge.not-configured { background: #f59e0b; }
+        
+        .nav { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; }
+        .nav-logo { font-size: 1.3rem; font-weight: 800; color: white; text-decoration: none; }
+        .nav-logo span { color: #10b981; }
+        .nav-links a { color: #94a3b8; text-decoration: none; margin-left: 1.5rem; }
+        
+        select { width: 100%; padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 1rem; }
+        select option { background: #1e293b; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/" class="nav-logo">Pet<span>Vet</span> AI</a>
+        <div class="nav-links">
+            <a href="/diagnose">Diagnose</a>
+            <a href="/settings">Settings</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h1>⚙️ Settings</h1>
+        <p class="subtitle">Configure your API keys and preferences</p>
+        
+        <div class="settings-card">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="status-badge {{ category }}">
+                        {{ message }}
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label>🔑 Groq API Key</label>
+                    <input type="password" name="groq_api_key" placeholder="gsk_xxxxxxxxxxxxxxxxxxxxxxxx" value="{{ settings.groq_api_key or '' }}">
+                    <p class="help-text">
+                        Get your free API key at <a href="https://console.groq.com" target="_blank">console.groq.com</a><br>
+                        The AI needs this to analyze pet photos.
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label>🐾 Default Animal</label>
+                    <select name="default_animal">
+                        <option value="dog" {% if settings.default_animal == 'dog' %}selected{% endif %}>🐕 Dog</option>
+                        <option value="cat" {% if settings.default_animal == 'cat' %}selected{% endif %}>🐈 Cat</option>
+                        <option value="horse" {% if settings.default_animal == 'horse' %}selected{% endif %}>🐴 Horse</option>
+                        <option value="goat" {% if settings.default_animal == 'goat' %}selected{% endif %}>🐐 Goat</option>
+                        <option value="sheep" {% if settings.default_animal == 'sheep' %}selected{% endif %}>🐑 Sheep</option>
+                        <option value="cow" {% if settings.default_animal == 'cow' %}selected{% endif %}>🐄 Cow</option>
+                        <option value="reptile" {% if settings.default_animal == 'reptile' %}selected{% endif %}>🦎 Reptile</option>
+                        <option value="small_pet" {% if settings.default_animal == 'small_pet' %}selected{% endif %}>🐹 Small Pet</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <div class="toggle-group">
+                        <label class="toggle">
+                            <input type="checkbox" name="ai_enabled" value="true" {% if settings.ai_enabled != False %}checked{% endif %}>
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span>Enable AI Analysis</span>
+                    </div>
+                    <p class="help-text">When enabled, AI will analyze uploaded photos. Disable to use only symptom matching.</p>
+                </div>
+                
+                <button type="submit" class="btn-save">💾 Save Settings</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
