@@ -9,15 +9,16 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); min-height: 100vh; color: #fff; }
         
-        .container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
         
-        .result-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; backdrop-filter: blur(10px); text-align: center; }
+        .result-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; backdrop-filter: blur(10px); }
         
         .result-image { width: 100%; max-height: 300px; object-fit: contain; border-radius: 12px; margin-bottom: 1.5rem; }
         
         .animal-badge { display: inline-block; background: #10b981; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem; }
         
         h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        h2 { font-size: 1.4rem; margin: 1.5rem 0 1rem; }
         .message { color: #94a3b8; margin-bottom: 2rem; }
         
         .confidence { display: inline-block; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; margin-bottom: 1.5rem; }
@@ -25,23 +26,36 @@
         .confidence.medium { background: #f59e0b; }
         .confidence.low { background: #64748b; }
         
-        .conditions { text-align: left; }
-        .condition { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; border-left: 4px solid #10b981; }
-        .condition-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
-        .condition-desc { color: #94a3b8; font-size: 0.9rem; margin-bottom: 0.75rem; }
-        .match-percent { display: inline-block; background: #10b981; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        .ai-section { background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; text-align: left; }
+        .ai-section h2 { color: #fff; margin-top: 0; }
+        .ai-diagnosis { font-size: 1.2rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem; }
+        .ai-description { color: #c4b5fd; font-size: 0.95rem; line-height: 1.6; }
+        .ai-symptoms { margin-top: 1rem; }
+        .ai-symptom-tag { display: inline-block; background: rgba(255,255,255,0.2); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.8rem; margin: 0.2rem; }
+        .ai-recommendation { margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.1); border-radius: 10px; }
+        .ai-recommendation strong { color: #10b981; }
         
         .severity { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-left: 0.5rem; }
         .severity.critical { background: #dc2626; }
         .severity.high { background: #f97316; }
         .severity.moderate { background: #f59e0b; }
         .severity.low { background: #10b981; }
+        .severity.urgent { background: #ef4444; }
+        .severity.monitor { background: #3b82f6; }
+        .severity.none { background: #22c55e; }
+        
+        .symptom-section { text-align: left; margin-top: 1.5rem; }
+        .symptom-section h3 { font-size: 1.1rem; margin-bottom: 0.75rem; color: #e2e8f0; }
+        .condition { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; border-left: 4px solid #10b981; }
+        .condition-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .condition-desc { color: #94a3b8; font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .match-percent { display: inline-block; background: #10b981; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
         
         .disclaimer { background: rgba(239,68,68,0.2); border: 1px solid #dc2626; border-radius: 12px; padding: 1rem; margin-top: 1.5rem; font-size: 0.85rem; }
         
         .btn-home { display: inline-block; background: #10b981; color: white; padding: 0.75rem 1.5rem; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 1.5rem; }
         
-        .feedback { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); }
+        .feedback { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; }
         .feedback h3 { margin-bottom: 1rem; }
         .feedback-btns { display: flex; gap: 1rem; justify-content: center; }
         .feedback-btn { padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
@@ -52,6 +66,8 @@
         .nav-logo { font-size: 1.3rem; font-weight: 800; color: white; text-decoration: none; }
         .nav-logo span { color: #10b981; }
         .nav-links a { color: #94a3b8; text-decoration: none; margin-left: 1.5rem; }
+        
+        .ai-badge { display: inline-block; background: linear-gradient(135deg, #7c3aed, #4f46e5); padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin-left: 0.5rem; }
     </style>
 </head>
 <body>
@@ -69,20 +85,41 @@
             <img src="{{ url_for('static', filename='uploads/' + image) }}" alt="Uploaded pet image" class="result-image">
             {% endif %}
             
-            <div class="animal-badge">🐾 {{ animal_type.title() }}</div>
+            <div class="animal-badge">🐾 {{ animal_type.title() }} {% if ai_used %}<span class="ai-badge">🤖 AI Powered</span>{% endif %}</div>
             
             <h1>🔍 Diagnosis Results</h1>
             <p class="message">{{ diagnosis.message }}</p>
             
-            {% if diagnosis.confidence %}
-            <div class="confidence {{ diagnosis.confidence }}">
-                Confidence: {{ diagnosis.confidence.title() }}
+            {% if diagnosis.ai_diagnosis and diagnosis.ai_diagnosis.success %}
+            <div class="ai-section">
+                <h2>🧠 AI Analysis</h2>
+                <div class="ai-diagnosis">
+                    {{ diagnosis.ai_diagnosis.diagnosis }}
+                    <span class="severity {{ diagnosis.ai_diagnosis.severity }}">{{ diagnosis.ai_diagnosis.severity }}</span>
+                </div>
+                <div class="ai-description">{{ diagnosis.ai_diagnosis.description }}</div>
+                
+                {% if diagnosis.ai_diagnosis.symptoms_observed %}
+                <div class="ai-symptoms">
+                    <strong style="color: #c4b5fd;">Observed Symptoms:</strong><br>
+                    {% for symptom in diagnosis.ai_diagnosis.symptoms_observed %}
+                    <span class="ai-symptom-tag">{{ symptom }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                {% if diagnosis.ai_diagnosis.recommendation %}
+                <div class="ai-recommendation">
+                    <strong>💡 Recommendation:</strong> {{ diagnosis.ai_diagnosis.recommendation }}
+                </div>
+                {% endif %}
             </div>
             {% endif %}
             
-            {% if diagnosis.conditions %}
-            <div class="conditions">
-                {% for match in diagnosis.conditions %}
+            {% if diagnosis.symptom_diagnosis and diagnosis.symptom_diagnosis.conditions %}
+            <div class="symptom-section">
+                <h3>📋 Symptom Match Results</h3>
+                {% for match in diagnosis.symptom_diagnosis.conditions %}
                 <div class="condition">
                     <div class="condition-name">
                         {{ match.condition.name }}
@@ -115,7 +152,6 @@
     
     <script>
         function submitFeedback(correct) {
-            // In production, this would send to the API
             alert(correct ? 'Thanks! This helps our AI learn! 🎉' : 'Thanks for the feedback! We\'ll improve. 💪');
         }
     </script>

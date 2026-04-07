@@ -1,5 +1,5 @@
 """
-Pet Vet AI - MVP Flask Application
+Pet Vet AI - MVP Flask Application with Groq AI Integration
 AI-powered pet health diagnostic app
 """
 
@@ -8,6 +8,7 @@ import json
 import csv
 import uuid
 import base64
+import requests
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
 from werkzeug.utils import secure_filename
@@ -26,11 +27,111 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
+# Groq API Configuration
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
+GROQ_MODEL = "llama-3.2-90b-vision-preview"  # Groq's vision model
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ==================== GROQ AI ANALYSIS ====================
+
+def analyze_pet_image(image_path, animal_type="dog"):
+    """
+    Use Groq's vision model to analyze a pet health image
+    Returns AI's diagnostic assessment
+    """
+    if not GROQ_API_KEY:
+        return {"error": "Groq API key not configured", "success": False}
+    
+    try:
+        # Convert image to base64
+        with open(image_path, "rb") as img_file:
+            img_base64 = base64.b64encode(img_file.read()).decode('utf-8')
+        
+        # Prepare the prompt for the AI
+        animal_names = {
+            "dog": "dog", "cat": "cat", "horse": "horse", "goat": "goat",
+            "sheep": "sheep", "cow": "cow", "reptile": "reptile/snake/lizard",
+            "small_pet": "small pet (hamster/gerbil/rabbit/guinea pig)"
+        }
+        animal = animal_names.get(animal_type, "pet")
+        
+        prompt = f"""You are a veterinary expert AI. Analyze this photo of a {animal} and identify any visible health conditions or symptoms.
+
+Look for:
+- Skin conditions (rashes, lesions, hot spots, wounds, parasites)
+- Eye health (discharge, redness, cloudiness)
+- Ear issues (discharge, swelling, redness)
+- Mouth/dental problems
+- Paw/limb injuries
+- Swelling or abnormalities
+- Coat/fur condition
+- Signs of pain or discomfort
+
+Respond in JSON format:
+{{
+    "diagnosis": "brief diagnosis or 'No clear issues visible'",
+    "confidence": "high/medium/low",
+    "severity": "critical/urgent/monitor/none",
+    "symptoms_observed": ["list of visible symptoms"],
+    "recommendation": "brief recommendation (home care, vet visit, emergency)",
+    "description": "detailed explanation of what you see"
+}}
+
+If the image is unclear or not of a pet, return {{"error": "Image unclear or not a pet"}}"""
+
+        # Call Groq API
+        url = "https://api.groq.com/openai/v1/chat/completions"
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "model": GROQ_MODEL,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}
+                        }
+                    ]
+                }
+            ],
+            "temperature": 0.3,
+            "max_tokens": 1000
+        }
+        
+        response = requests.post(url, headers=headers, json=data, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            content = result['choices'][0]['message']['content']
+            
+            # Parse JSON from response
+            try:
+                # Try to extract JSON from the response
+                if "```json" in content:
+                    content = content.split("```json")[1].split("```")[0]
+                elif "```" in content:
+                    content = content.split("```")[1].split("```")[0]
+                
+                diagnosis = json.loads(content)
+                diagnosis["success"] = True
+                return diagnosis
+            except json.JSONDecodeError:
+                return {"diagnosis": content[:200], "success": True, "confidence": "low"}
+        else:
+            return {"error": f"API error: {response.status_code}", "success": False}
+            
+    except Exception as e:
+        return {"error": str(e), "success": False}
+
 # ==================== CONDITION DATABASE ====================
-# This is a starter database - the AI learns and expands this
 
 CONDITIONS = {
     "dog": [
@@ -83,7 +184,7 @@ CONDITIONS = {
         {"id": "b4", "name": "Ringworm", "symptoms": ["circular_lesions", "hair_loss", "scaling", "crusting"], "severity": "low", "description": "Fungal skin infection"},
     ],
     "reptile": [
-        {"id": "r1", "name": "Scale Rot", "symptoms": ["discolored_scales", " ulcers", "swelling", "loss_of_appetite"], "severity": "high", "description": "Bacterial infection from poor conditions"},
+        {"id": "r1", "name": "Scale Rot", "symptoms": ["discolored_scales", "ulcers", "swelling", "loss_of_appetite"], "severity": "high", "description": "Bacterial infection from poor conditions"},
         {"id": "r2", "name": "Mites", "symptoms": ["visible_parasites", "restlessness", "soaking", "black_specks"], "severity": "moderate", "description": "External parasites"},
         {"id": "r3", "name": "Stomatitis (Mouth Rot)", "symptoms": ["swollen_jaws", "white_patches", "drooling", "refusing_food"], "severity": "high", "description": "Mouth infection"},
         {"id": "r4", "name": "Shedding Problems", "symptoms": ["retained_skin", "constricted_toes", "incomplete_shed", "irritation"], "severity": "moderate", "description": "Improper humidity"},
@@ -95,78 +196,6 @@ CONDITIONS = {
         {"id": "sp3", "name": "Bumblefoot", "symptoms": ["swollen_feet", "redness", "sores", "limping"], "severity": "moderate", "description": "Pressure sore on feet"},
         {"id": "sp4", "name": "Dental Problems", "symptoms": ["drooling", "weight_loss", "not_eating", "long_teeth"], "severity": "high", "description": "Overgrown teeth - common in rabbits/guinea pigs"},
     ]
-}
-
-# Symptom definitions for matching
-SYMPTOMS = {
-    "red_patch": "Red, inflamed skin patch",
-    "hair_loss": "Missing fur or hair",
-    "moist_skin": "Wet, oozing skin",
-    "itching": "Scratching or rubbing",
-    "head_shaking": "Shaking head frequently",
-    "odor": "Bad smell from affected area",
-    "discharge": "Fluid or pus coming from area",
-    "scratching_ears": "Pawing at ears",
-    "red_eyes": "Bloodshot or red eyes",
-    "squinting": "Keeping eyes partially closed",
-    "pawing_at_face": "Pawing at eyes or face",
-    "circular_lesions": "Ring-shaped skin patches",
-    "scaling": "Flaky, dry skin",
-    "broken_hair": "Split or broken fur",
-    "intense_itching": "Constant scratching",
-    "red_bumps": "Small red spots or welts",
-    "flea_dirt": "Black specks on fur (flea feces)",
-    "soft_lump": "Movable lump under skin",
-    "movable_under_skin": "Lump that moves when touched",
-    "no_pain": "Not painful when touched",
-    "bad_breath": "Foul odor from mouth",
-    "red_gums": "Inflamed gums",
-    "drooling": "Excessive saliva",
-    "difficulty_eating": "Problems chewing or swallowing",
-    "limping": "Favoring one leg",
-    "swollen_paw": "Paw appears puffy",
-    "cuts_on_paw": "Open wounds on paw",
-    "licking_paw": "Constantly licking paw",
-    "skin_growth": "Extra tissue growth",
-    "hanging_tag": "Skin tag hanging from surface",
-    "soft": "Soft to the touch",
-    "same_color": "Same color as skin",
-    "oozing_skin": "Liquid coming from skin",
-    "red_inflamed": "Red and swollen",
-    "painful": "Shows signs of pain",
-    "quick_onset": "Appeared suddenly",
-    "dark_discharge": "Dark debris in ear",
-    "odor": "Bad smell from ears",
-    "blackheads": "Black spots on skin",
-    "chin_bumps": "Bumps on chin",
-    "swelling": "Puffy or enlarged area",
-    "tangled_fur": "Matted, knotted fur",
-    "skin_irritation": "Red or inflamed skin",
-    "odor": "Bad smell from coat",
-    "neglect": "Signs of poor care",
-    "pus": "Thick white/yellow fluid",
-    "fever": "Hot to touch or lethargy",
-    "matted_hair": "Clumped, wet fur",
-    "skin_lesions": "Open sores on skin",
-    "drainage": "Fluid leaking from area",
-    "crusty_scabs": "Hard, scabby patches",
-    "dandruff": "Flaky skin particles",
-    "back_lesions": "Lesions on back area",
-    "crusty_skin": "Hardened, crusty skin",
-    "lameness": "Difficulty walking",
-    "mane_tail_rubbing": "Rubbing against objects",
-    "sores": "Open, painful wounds",
-    "heat_in_hoof": "Hot hoof wall",
-    "pulse": "Strong digital pulse",
-    "reluctance_to_stand": "Not wanting to stand",
-    "matted_hair": "Wet, matted fur",
-    "cloudy_eye": "Opaque or cloudy eye",
-    "tearing": "Watery discharge from eye",
-    "swelling": "Puffiness around eye",
-    "open_wound": "Breaking in skin",
-    "bleeding": "Blood coming from wound",
-    "swollen_pastern": "Swelling in lower leg",
-    "cracked_skin": "Split or cracked skin",
 }
 
 # ==================== ROUTES ====================
@@ -190,6 +219,7 @@ def upload_photo():
     
     file = request.files['photo']
     animal_type = request.form.get('animal_type', 'dog')
+    use_ai = request.form.get('use_ai', 'true') == 'true'
     symptoms = request.form.getlist('symptoms')
     
     if file.filename == '':
@@ -202,26 +232,53 @@ def upload_photo():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         
-        # Simple rule-based diagnosis (MVP - will be replaced with ML)
-        diagnosis = analyze_symptoms(animal_type, symptoms)
+        # Get AI analysis if enabled
+        ai_diagnosis = None
+        if use_ai and GROQ_API_KEY:
+            ai_diagnosis = analyze_pet_image(filepath, animal_type)
+        
+        # Also run symptom matching (fallback / comparison)
+        symptom_diagnosis = analyze_symptoms(animal_type, symptoms)
+        
+        # Combine results
+        diagnosis = combine_diagnoses(ai_diagnosis, symptom_diagnosis, use_ai)
         
         # Save diagnosis record
-        save_diagnosis(animal_type, filename, symptoms, diagnosis)
+        save_diagnosis(animal_type, filename, symptoms, diagnosis, ai_diagnosis)
         
         return render_template('result.html', 
                              diagnosis=diagnosis,
                              animal_type=animal_type,
-                             image=filename)
+                             image=filename,
+                             ai_used=use_ai and ai_diagnosis and ai_diagnosis.get('success'))
     
     flash('Invalid file type', 'error')
     return redirect(url_for('diagnose_page'))
+
+def combine_diagnoses(ai_diagnosis, symptom_diagnosis, use_ai):
+    """Combine AI analysis with symptom matching"""
+    if use_ai and ai_diagnosis and ai_diagnosis.get('success'):
+        return {
+            'ai_diagnosis': ai_diagnosis,
+            'symptom_diagnosis': symptom_diagnosis,
+            'message': 'AI has analyzed your image. View results below.',
+            'confidence': ai_diagnosis.get('confidence', 'medium'),
+            'combined': True
+        }
+    else:
+        return {
+            'ai_diagnosis': None,
+            'symptom_diagnosis': symptom_diagnosis,
+            'message': symptom_diagnosis.get('message', 'Based on symptoms:'),
+            'confidence': symptom_diagnosis.get('confidence', 'low'),
+            'combined': False
+        }
 
 def analyze_symptoms(animal_type, selected_symptoms):
     """Simple symptom matching algorithm"""
     animal_conditions = CONDITIONS.get(animal_type, [])
     
     if not selected_symptoms:
-        # No symptoms selected - return general conditions
         return {
             'conditions': animal_conditions[:3],
             'message': 'Please select symptoms for more accurate diagnosis',
@@ -231,10 +288,8 @@ def analyze_symptoms(animal_type, selected_symptoms):
     matches = []
     for condition in animal_conditions:
         condition_symptoms = condition.get('symptoms', [])
-        # Count matching symptoms
         matching = len(set(selected_symptoms) & set(condition_symptoms))
         if matching > 0:
-            # Calculate match percentage
             match_percent = (matching / len(condition_symptoms)) * 100
             matches.append({
                 'condition': condition,
@@ -242,7 +297,6 @@ def analyze_symptoms(animal_type, selected_symptoms):
                 'match_percent': round(match_percent, 1)
             })
     
-    # Sort by match percentage
     matches.sort(key=lambda x: x['match_percent'], reverse=True)
     
     if matches:
@@ -250,7 +304,7 @@ def analyze_symptoms(animal_type, selected_symptoms):
         confidence = 'high' if top['match_percent'] > 50 else 'medium' if top['match_percent'] > 25 else 'low'
         return {
             'conditions': matches[:3],
-            'message': f"Based on {len(selected_symptoms)} symptoms, here's what I found:",
+            'message': f"Based on {len(selected_symptoms)} symptoms:",
             'confidence': confidence,
             'top_match': top
         }
@@ -261,14 +315,14 @@ def analyze_symptoms(animal_type, selected_symptoms):
         'confidence': 'none'
     }
 
-def save_diagnosis(animal_type, image_file, symptoms, diagnosis):
+def save_diagnosis(animal_type, image_file, symptoms, diagnosis, ai_diagnosis=None):
     """Save diagnosis for learning"""
     record = {
         'timestamp': datetime.now().isoformat(),
         'animal_type': animal_type,
         'image': image_file,
         'symptoms': symptoms,
-        'diagnosis': diagnosis.get('top_match', {}).get('condition', {}).get('name', 'unknown'),
+        'ai_diagnosis': ai_diagnosis.get('diagnosis') if ai_diagnosis else None,
         'confidence': diagnosis.get('confidence', 'unknown')
     }
     
@@ -302,16 +356,24 @@ def api_diagnose():
         return jsonify({'error': 'No image provided'}), 400
     
     animal_type = request.form.get('animal_type', 'dog')
+    use_ai = request.form.get('use_ai', 'true') == 'true'
     symptoms = request.form.getlist('symptoms')
     
-    # Process image (placeholder - ML model will go here)
     image = request.files['image']
     filename = f"{uuid.uuid4()}_{secure_filename(image.filename)}"
     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     image.save(filepath)
     
-    # Get diagnosis
-    diagnosis = analyze_symptoms(animal_type, symptoms)
+    # Get AI analysis
+    ai_diagnosis = None
+    if use_ai and GROQ_API_KEY:
+        ai_diagnosis = analyze_pet_image(filepath, animal_type)
+    
+    # Get symptom diagnosis
+    symptom_diagnosis = analyze_symptoms(animal_type, symptoms)
+    
+    # Combine
+    diagnosis = combine_diagnoses(ai_diagnosis, symptom_diagnosis, use_ai)
     
     return jsonify({
         'success': True,
@@ -324,7 +386,6 @@ def api_diagnose():
 def api_feedback():
     """Receive user feedback to improve AI"""
     data = request.get_json()
-    # Save feedback for model improvement
     feedback_file = os.path.join(DATA_DIR, 'feedback.json')
     
     if os.path.exists(feedback_file):
