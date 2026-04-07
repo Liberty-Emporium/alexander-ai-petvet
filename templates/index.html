@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Vet AI - Smart Pet Health Diagnostics</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); min-height: 100vh; color: #fff; }
+        
+        .hero { text-align: center; padding: 4rem 1rem; }
+        .hero h1 { font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 900; margin-bottom: 1rem; }
+        .hero h1 span { color: #10b981; }
+        .hero p { font-size: 1.2rem; color: #94a3b8; max-width: 600px; margin: 0 auto 2rem; }
+        .btn { display: inline-block; background: #10b981; color: white; padding: 1rem 2rem; border-radius: 12px; font-weight: 700; text-decoration: none; transition: transform 0.2s, box-shadow 0.2s; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(16,185,129,0.4); }
+        
+        .features { max-width: 1000px; margin: 0 auto; padding: 2rem; }
+        .features h2 { text-align: center; font-size: 2rem; margin-bottom: 2rem; }
+        .feature-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+        .feature-card { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 1.5rem; backdrop-filter: blur(10px); }
+        .feature-card h3 { font-size: 1.2rem; margin-bottom: 0.5rem; color: #10b981; }
+        .feature-card p { color: #94a3b8; font-size: 0.95rem; }
+        
+        .animals { background: rgba(255,255,255,0.05); padding: 4rem 1rem; }
+        .animals h2 { text-align: center; font-size: 2rem; margin-bottom: 2rem; }
+        .animal-icons { display: flex; justify-content: center; flex-wrap: wrap; gap: 2rem; font-size: 3rem; }
+        
+        .cta { text-align: center; padding: 4rem 1rem; }
+        .cta h2 { font-size: 2.5rem; margin-bottom: 1rem; }
+        
+        .footer { text-align: center; padding: 2rem; color: #64748b; font-size: 0.9rem; }
+        
+        .nav { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; }
+        .nav-logo { font-size: 1.3rem; font-weight: 800; color: white; text-decoration: none; }
+        .nav-logo span { color: #10b981; }
+        .nav-links a { color: #94a3b8; text-decoration: none; margin-left: 1.5rem; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/" class="nav-logo">Pet<span>Vet</span> AI</a>
+        <div class="nav-links">
+            <a href="/diagnose">Diagnose</a>
+            <a href="/about">About</a>
+            <a href="/contact">Contact</a>
+        </div>
+    </nav>
+    
+    <section class="hero">
+        <h1>Your Pet's Health<br><span>Just a Photo Away</span></h1>
+        <p>AI-powered diagnostics for dogs, cats, horses, farm animals, and exotic pets. Get instant health insights and know when to see a vet.</p>
+        <a href="/diagnose" class="btn">🚀 Start Diagnosis</a>
+    </section>
+    
+    <section class="features">
+        <h2>Why Pet Vet AI?</h2>
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3>📸 Photo Analysis</h3>
+                <p>Upload a photo of your pet's condition and our AI analyzes symptoms instantly.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🐴 All Animals</h3>
+                <p>From dogs & cats to horses, goats, reptiles, and small pets — we've got you covered.</p>
+            </div>
+            <div class="feature-card">
+                <h3>🧠 Learns & Improves</h3>
+                <p>Our AI gets smarter with every diagnosis. The more you use it, the better it gets.</p>
+            </div>
+            <div class="feature-card">
+                <h3>💰 Free to Start</h3>
+                <p>5 free diagnoses per month. No credit card required. Upgrade anytime.</p>
+            </div>
+        </div>
+    </section>
+    
+    <section class="animals">
+        <h2>We Support</h2>
+        <div class="animal-icons">
+            🐕 🐈 🐴 🐐 🐑 🐄 🐖 🐔 🦎 🐍 🐹 🐰
+        </div>
+    </section>
+    
+    <section class="cta">
+        <h2>Ready to Help Your Pet?</h2>
+        <a href="/diagnose" class="btn">Get Started Free →</a>
+    </section>
+    
+    <footer class="footer">
+        <p>© 2026 Pet Vet AI — A Liberty Emporium Project</p>
+    </footer>
+</body>
+</html>

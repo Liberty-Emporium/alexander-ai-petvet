@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnosis Results | Pet Vet AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); min-height: 100vh; color: #fff; }
+        
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
+        
+        .result-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; backdrop-filter: blur(10px); text-align: center; }
+        
+        .result-image { width: 100%; max-height: 300px; object-fit: contain; border-radius: 12px; margin-bottom: 1.5rem; }
+        
+        .animal-badge { display: inline-block; background: #10b981; padding: 0.5rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem; }
+        
+        h1 { font-size: 1.8rem; margin-bottom: 0.5rem; }
+        .message { color: #94a3b8; margin-bottom: 2rem; }
+        
+        .confidence { display: inline-block; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 600; margin-bottom: 1.5rem; }
+        .confidence.high { background: #10b981; }
+        .confidence.medium { background: #f59e0b; }
+        .confidence.low { background: #64748b; }
+        
+        .conditions { text-align: left; }
+        .condition { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; border-left: 4px solid #10b981; }
+        .condition-name { font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+        .condition-desc { color: #94a3b8; font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .match-percent { display: inline-block; background: #10b981; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        
+        .severity { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-left: 0.5rem; }
+        .severity.critical { background: #dc2626; }
+        .severity.high { background: #f97316; }
+        .severity.moderate { background: #f59e0b; }
+        .severity.low { background: #10b981; }
+        
+        .disclaimer { background: rgba(239,68,68,0.2); border: 1px solid #dc2626; border-radius: 12px; padding: 1rem; margin-top: 1.5rem; font-size: 0.85rem; }
+        
+        .btn-home { display: inline-block; background: #10b981; color: white; padding: 0.75rem 1.5rem; border-radius: 10px; text-decoration: none; font-weight: 600; margin-top: 1.5rem; }
+        
+        .feedback { margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1); }
+        .feedback h3 { margin-bottom: 1rem; }
+        .feedback-btns { display: flex; gap: 1rem; justify-content: center; }
+        .feedback-btn { padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+        .feedback-btn.correct { background: #10b981; color: white; }
+        .feedback-btn.wrong { background: #dc2626; color: white; }
+        
+        .nav { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; }
+        .nav-logo { font-size: 1.3rem; font-weight: 800; color: white; text-decoration: none; }
+        .nav-logo span { color: #10b981; }
+        .nav-links a { color: #94a3b8; text-decoration: none; margin-left: 1.5rem; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/" class="nav-logo">Pet<span>Vet</span> AI</a>
+        <div class="nav-links">
+            <a href="/diagnose">New Diagnosis</a>
+            <a href="/">Home</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <div class="result-card">
+            {% if image %}
+            <img src="{{ url_for('static', filename='uploads/' + image) }}" alt="Uploaded pet image" class="result-image">
+            {% endif %}
+            
+            <div class="animal-badge">🐾 {{ animal_type.title() }}</div>
+            
+            <h1>🔍 Diagnosis Results</h1>
+            <p class="message">{{ diagnosis.message }}</p>
+            
+            {% if diagnosis.confidence %}
+            <div class="confidence {{ diagnosis.confidence }}">
+                Confidence: {{ diagnosis.confidence.title() }}
+            </div>
+            {% endif %}
+            
+            {% if diagnosis.conditions %}
+            <div class="conditions">
+                {% for match in diagnosis.conditions %}
+                <div class="condition">
+                    <div class="condition-name">
+                        {{ match.condition.name }}
+                        <span class="severity {{ match.condition.severity }}">{{ match.condition.severity }}</span>
+                    </div>
+                    <div class="condition-desc">{{ match.condition.description }}</div>
+                    {% if match.match_percent %}
+                    <div class="match-percent">{% if match.match_percent >= 80 %}🎯{% elif match.match_percent >= 50 %}✅{% else %}⚠️{% endif %} {{ match.match_percent }}% symptom match</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            
+            <div class="disclaimer">
+                ⚠️ <strong>Important:</strong> This is an AI-assisted diagnosis and should NOT replace professional veterinary care. If your pet is in distress, please consult a veterinarian immediately.
+            </div>
+            
+            <div class="feedback">
+                <h3>Was this diagnosis helpful?</h3>
+                <div class="feedback-btns">
+                    <button class="feedback-btn correct" onclick="submitFeedback(true)">✅ Yes</button>
+                    <button class="feedback-btn wrong" onclick="submitFeedback(false)">❌ No</button>
+                </div>
+            </div>
+            
+            <a href="/diagnose" class="btn-home">🔄 Try Another</a>
+        </div>
+    </div>
+    
+    <script>
+        function submitFeedback(correct) {
+            // In production, this would send to the API
+            alert(correct ? 'Thanks! This helps our AI learn! 🎉' : 'Thanks for the feedback! We\'ll improve. 💪');
+        }
+    </script>
+</body>
+</html>

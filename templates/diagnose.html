@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnose | Pet Vet AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); min-height: 100vh; color: #fff; }
+        
+        .container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
+        h1 { text-align: center; font-size: 2rem; margin-bottom: 0.5rem; }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 2rem; }
+        
+        .form-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; backdrop-filter: blur(10px); }
+        
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #e2e8f0; }
+        
+        select, input[type="text"] { width: 100%; padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 1rem; }
+        select option { background: #1e293b; }
+        
+        .upload-area { border: 2px dashed rgba(255,255,255,0.3); border-radius: 16px; padding: 2rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; }
+        .upload-area:hover { border-color: #10b981; background: rgba(16,185,129,0.1); }
+        .upload-area input { display: none; }
+        .upload-icon { font-size: 3rem; margin-bottom: 1rem; }
+        .upload-text { color: #94a3b8; }
+        
+        .symptoms-section { margin-top: 2rem; }
+        .symptoms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 1rem; }
+        
+        .symptom-checkbox { display: none; }
+        .symptom-label { display: block; padding: 0.75rem 1rem; background: rgba(255,255,255,0.1); border-radius: 10px; cursor: pointer; transition: all 0.2s; text-align: center; font-size: 0.9rem; }
+        .symptom-checkbox:checked + .symptom-label { background: #10b981; color: white; }
+        
+        .btn-submit { width: 100%; padding: 1rem; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 700; cursor: pointer; margin-top: 2rem; transition: transform 0.2s; }
+        .btn-submit:hover { transform: translateY(-2px); }
+        
+        .nav { display: flex; justify-content: space-between; align-items: center; padding: 1rem 2rem; }
+        .nav-logo { font-size: 1.3rem; font-weight: 800; color: white; text-decoration: none; }
+        .nav-logo span { color: #10b981; }
+        .nav-links a { color: #94a3b8; text-decoration: none; margin-left: 1.5rem; }
+        
+        .animal-selector { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .animal-btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: #94a3b8; cursor: pointer; transition: all 0.2s; }
+        .animal-btn.active { background: #10b981; color: white; border-color: #10b981; }
+        
+        .preview { margin-top: 1rem; display: none; }
+        .preview img { max-width: 100%; border-radius: 10px; }
+        
+        .info-box { background: rgba(16,185,129,0.2); border: 1px solid #10b981; border-radius: 10px; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="/" class="nav-logo">Pet<span>Vet</span> AI</a>
+        <div class="nav-links">
+            <a href="/diagnose">Diagnose</a>
+            <a href="/about">About</a>
+        </div>
+    </nav>
+    
+    <div class="container">
+        <h1>🐾 Pet Health Diagnosis</h1>
+        <p class="subtitle">Upload a photo and select symptoms for AI analysis</p>
+        
+        <div class="form-card">
+            <div class="info-box">
+                ℹ️ <strong>How it works:</strong> Upload a clear photo of the affected area, select your pet type, check any symptoms you observe, and our AI will analyze and provide diagnostic suggestions.
+            </div>
+            
+            <form action="/upload" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label>Select Animal Type</label>
+                    <div class="animal-selector">
+                        <button type="button" class="animal-btn active" onclick="selectAnimal('dog')">🐕 Dog</button>
+                        <button type="button" class="animal-btn" onclick="selectAnimal('cat')">🐈 Cat</button>
+                        <button type="button" class="animal-btn" onclick="selectAnimal('horse')">🐴 Horse</button>
+                        <button type="button" class="animal-btn" onclick="selectAnimal('goat')">🐐 Goat</button>
+                        <button type="button" class="animal-btn" onclick="selectAnimal('sheep')">🐑 Sheep</button>
+                        <button type="button" class="animal-btn" onclick="selectAnimal('cow')">🐄 Cow</button>
+                        <button type="button" class="animal-btn" onclick="selectAnimal('reptile')">🦎 Reptile</button>
+                        <button type="button" class="animal-btn" onclick="selectAnimal('small_pet')">🐹 Small Pet</button>
+                    </div>
+                    <input type="hidden" name="animal_type" id="animal_type" value="dog">
+                </div>
+                
+                <div class="form-group">
+                    <label>📸 Upload Photo</label>
+                    <div class="upload-area" onclick="document.getElementById('photo').click()">
+                        <div class="upload-icon">📷</div>
+                        <div class="upload-text">Click to upload or drag & drop<br><small>JPG, PNG, GIF - max 16MB</small></div>
+                        <input type="file" id="photo" name="photo" accept="image/*" onchange="previewImage(this)">
+                    </div>
+                    <div class="preview" id="preview"></div>
+                </div>
+                
+                <div class="form-group symptoms-section">
+                    <label>Select Observed Symptoms</label>
+                    <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 0.5rem;">Check all that apply:</p>
+                    <div class="symptoms-grid" id="symptoms-list">
+                        <!-- Symptoms will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-submit">🔍 Analyze & Diagnose</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        const animalSymptoms = {
+            dog: ['red_patch', 'hair_loss', 'moist_skin', 'itching', 'head_shaking', 'odor', 'discharge', 'scratching_ears', 'red_eyes', 'squinting', 'pawing_at_face', 'circular_lesions', 'scaling', 'broken_hair', 'intense_itching', 'red_bumps', 'flea_dirt', 'soft_lump', 'limping', 'swollen_paw', 'cuts_on_paw', 'licking_paw', 'bad_breath', 'red_gums', 'drooling'],
+            cat: ['dark_discharge', 'scratching_ears', 'head_shaking', 'odor', 'circular_lesions', 'hair_loss', 'scaling', 'blackheads', 'chin_bumps', 'red_eyes', 'squinting', 'swelling', 'tangled_fur', 'skin_irritation', 'odor', 'pus', 'fever', 'drooling', 'bad_breath'],
+            horse: ['crusty_scabs', 'hair_loss', 'dandruff', 'back_lesions', 'crusty_skin', 'swollen_legs', 'pain', 'lameness', 'intense_itching', 'mane_tail_rubbing', 'sores', 'heat_in_hoof', 'pulse', 'reluctance_to_stand', 'cloudy_eye', 'tearing', 'swelling', 'open_wound', 'bleeding'],
+            goat: ['lameness', 'foul_odor', 'hoof_decay', 'swollen_legs', 'swollen_udder', 'abnormal_milk', 'fever', 'loss_of_appetite', 'persistent_cough', 'nasal_discharge', 'labored_breathing', 'weight_loss', 'blisters', 'scabs_on_mouth', 'drooling', 'refusing_food'],
+            sheep: ['lameness', 'foul_odor', 'hoof_decay', 'swollen_legs', 'matted_wool', 'skin_discoloration', 'odor', 'itching', 'red_eyes', 'cloudy_cornea', 'tearing', 'squinting'],
+            cow: ['swollen_udder', 'abnormal_milk', 'fever', 'loss_of_appetite', 'limping', 'hoof_pain', 'swollen_legs', 'reluctance_to_move', 'distended_abdomen', 'restlessness', 'no_rumination', 'labored_breathing', 'circular_lesions', 'hair_loss', 'scaling', 'crusting'],
+            reptile: ['discolored_scales', 'ulcers', 'swelling', 'loss_of_appetite', 'visible_parasites', 'restlessness', 'soaking', 'black_specks', 'swollen_jaws', 'white_patches', 'drooling', 'refusing_food', 'retained_skin', 'constricted_toes', 'incomplete_shed', 'mouth_open', 'mucus', 'wheezing', 'lethargy'],
+            small_pet: ['matted_tail', 'diarrhea', 'lethargy', 'hunched_posture', 'hair_loss', 'scratching', 'dandruff', 'skin_irritation', 'swollen_feet', 'redness', 'sores', 'limping', 'drooling', 'weight_loss', 'not_eating', 'long_teeth']
+        };
+        
+        const symptomNames = {
+            red_patch: 'Red/Swollen Skin',
+            hair_loss: 'Hair Loss',
+            moist_skin: 'Moist/Oozing Skin',
+            itching: 'Itching',
+            head_shaking: 'Head Shaking',
+            odor: 'Bad Odor',
+            discharge: 'Discharge/Fluid',
+            scratching_ears: 'Scratching Ears',
+            red_eyes: 'Red Eyes',
+            squinting: 'Squinting',
+            pawing_at_face: 'Pawing at Face',
+            circular_lesions: 'Circular Lesions',
+            scaling: 'Flaky/Scaling Skin',
+            broken_hair: 'Broken Hair',
+            intense_itching: 'Intense Itching',
+            red_bumps: 'Red Bumps/Welts',
+            flea_dirt: 'Flea Dirt',
+            soft_lump: 'Soft Lump',
+            limping: 'Limping',
+            swollen_paw: 'Swollen Paw',
+            cuts_on_paw: 'Cuts on Paw',
+            licking_paw: 'Licking Paw',
+            bad_breath: 'Bad Breath',
+            red_gums: 'Red Gums',
+            drooling: 'Drooling',
+            dark_discharge: 'Dark Ear Discharge',
+            blackheads: 'Blackheads',
+            chin_bumps: 'Bumps on Chin',
+            swelling: 'Swelling',
+            tangled_fur: 'Tangled Fur',
+            skin_irritation: 'Skin Irritation',
+            pus: 'Pus',
+            fever: 'Fever',
+            crusty_scabs: 'Crusty Scabs',
+            dandruff: 'Dandruff',
+            back_lesions: 'Back Lesions',
+            crusty_skin: 'Crusty Skin',
+            lameness: 'Lameness',
+            pain: 'Pain',
+            mane_tail_rubbing: 'Rubbing Mane/Tail',
+            sores: 'Sores',
+            cloudy_eye: 'Cloudy Eye',
+            tearing: 'Tearing',
+            open_wound: 'Open Wound',
+            bleeding: 'Bleeding',
+            swollen_udder: 'Swollen Udder',
+            abnormal_milk: 'Abnormal Milk',
+            loss_of_appetite: 'Loss of Appetite',
+            foul_odor: 'Foul Odor',
+            hoof_decay: 'Hoof Decay',
+            swollen_legs: 'Swollen Legs',
+            persistent_cough: 'Persistent Cough',
+            nasal_discharge: 'Nasal Discharge',
+            labored_breathing: 'Labored Breathing',
+            weight_loss: 'Weight Loss',
+            blisters: 'Blisters',
+            scabs_on_mouth: 'Mouth Scabs',
+            refusing_food: 'Refusing Food',
+            matted_wool: 'Matted Wool',
+            skin_discoloration: 'Skin Discoloration',
+            red_eyes: 'Red Eyes',
+            cloudy_cornea: 'Cloudy Cornea',
+            distended_abdomen: 'Distended Abdomen',
+            cramping: 'Cramping',
+            matted_tail: 'Matted Tail',
+            diarrhea: 'Diarrhea',
+            lethargy: 'Lethargy',
+            hunched_posture: 'Hunched Posture',
+            constricted_toes: 'Constricted Toes',
+            incomplete_shed: 'Incomplete Shed',
+            mouth_open: 'Mouth Open',
+            mucus: 'Mucus',
+            wheezing: 'Wheezing'
+        };
+        
+        let selectedAnimal = 'dog';
+        
+        function selectAnimal(animal) {
+            selectedAnimal = animal;
+            document.getElementById('animal_type').value = animal;
+            
+            // Update button styles
+            document.querySelectorAll('.animal-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update symptoms
+            updateSymptoms();
+        }
+        
+        function updateSymptoms() {
+            const symptoms = animalSymptoms[selectedAnimal] || [];
+            const container = document.getElementById('symptoms-list');
+            container.innerHTML = symptoms.map(s => `
+                <input type="checkbox" class="symptom-checkbox" id="sym-${s}" name="symptoms" value="${s}">
+                <label class="symptom-label" for="sym-${s}">${symptomNames[s] || s}</label>
+            `).join('');
+        }
+        
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('preview').innerHTML = '<img src="' + e.target.result + '">';
+                    document.getElementById('preview').style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        // Initialize symptoms
+        updateSymptoms();
+    </script>
+</body>
+</html>
