@@ -441,8 +441,7 @@ def settings_page():
         # Update settings
         new_settings = {
             'groq_api_key': request.form.get('groq_api_key', ''),
-            'default_animal': request.form.get('default_animal', 'dog'),
-            'ai_enabled': request.form.get('ai_enabled', 'true') == 'true'
+            'default_animal': request.form.get('default_animal', 'dog')
         }
         
         # Mask the API key for display (show only first 8 chars)
