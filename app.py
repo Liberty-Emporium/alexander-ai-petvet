@@ -9,9 +9,11 @@ import csv
 import uuid
 import base64
 import requests
+import hashlib
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session
 from werkzeug.utils import secure_filename
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'pet-vet-ai-secret-key-2024')
@@ -233,6 +235,15 @@ def diagnose_page():
 @app.route('/upload', methods=['POST'])
 def upload_photo():
     """Handle photo upload and analysis"""
+    # Check if user is logged in and has available diagnoses
+    if 'user_id' in session:
+        subs = load_subscriptions()
+        user_sub = subs.get(session['user_id'], {'plan': 'free', 'diagnoses_used': 0})
+        
+        if user_sub.get('plan') == 'free' and user_sub.get('diagnoses_used', 0) >= 5:
+            flash('Free plan limit reached (5/month). Upgrade for unlimited diagnoses!', 'error')
+            return redirect(url_for('upgrade'))
+    
     if 'photo' not in request.files:
         flash('No photo uploaded', 'error')
         return redirect(url_for('diagnose_page'))
@@ -265,6 +276,10 @@ def upload_photo():
         
         # Save diagnosis record
         save_diagnosis(animal_type, filename, symptoms, diagnosis, ai_diagnosis)
+        
+        # Increment diagnosis count for logged-in users
+        if 'user_id' in session:
+            increment_diagnosis_count()
         
         return render_template('result.html', 
                              diagnosis=diagnosis,
@@ -471,6 +486,202 @@ def api_get_settings():
         'ai_enabled': settings.get('ai_enabled', True),
         'default_animal': settings.get('default_animal', 'dog')
     })
+
+# ==================== USER ACCOUNTS & SUBSCRIPTIONS ====================
+
+USERS_FILE = os.path.join(DATA_DIR, 'users.json')
+SUBSCRIPTIONS_FILE = os.path.join(DATA_DIR, 'subscriptions.json')
+
+def load_users():
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE) as f:
+            return json.load(f)
+    return {}
+
+def save_users(users):
+    with open(USERS_FILE, 'w') as f:
+        json.dump(users, f, indent=2)
+
+def load_subscriptions():
+    if os.path.exists(SUBSCRIPTIONS_FILE):
+        with open(SUBSCRIPTIONS_FILE) as f:
+            return json.load(f)
+    return {}
+
+def save_subscriptions(subs):
+    with open(SUBSCRIPTIONS_FILE, 'w') as f:
+        json.dump(subs, f, indent=2)
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password, hashed):
+    return hash_password(password) == hashed
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        email = request.form.get('email', '').lower().strip()
+        password = request.form.get('password', '')
+        name = request.form.get('name', '')
+        
+        if not email or not password or not name:
+            flash('Please fill in all fields', 'error')
+            return redirect(url_for('register'))
+        
+        users = load_users()
+        if email in users:
+            flash('Email already registered', 'error')
+            return redirect(url_for('register'))
+        
+        users[email] = {
+            'name': name,
+            'password': hash_password(password),
+            'created': datetime.now().isoformat()
+        }
+        save_users(users)
+        
+        # Create free subscription
+        subs = load_subscriptions()
+        subs[email] = {
+            'plan': 'free',
+            'diagnoses_used': 0,
+            'created': datetime.now().isoformat()
+        }
+        save_subscriptions(subs)
+        
+        session['user_id'] = email
+        session['user_name'] = name
+        flash('Account created! Welcome to Pet Vet AI!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email', '').lower().strip()
+        password = request.form.get('password', '')
+        
+        users = load_users()
+        if email in users and verify_password(password, users[email]['password']):
+            session['user_id'] = email
+            session['user_name'] = users[email]['name']
+            flash('Logged in successfully!', 'success')
+            return redirect(url_for('dashboard'))
+        
+        flash('Invalid email or password', 'error')
+        return redirect(url_for('login'))
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Logged out successfully', 'success')
+    return redirect(url_for('index'))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    user_id = session['user_id']
+    subs = load_subscriptions()
+    user_sub = subs.get(user_id, {'plan': 'free', 'diagnoses_used': 0})
+    
+    # Get diagnosis history
+    diagnoses_file = os.path.join(DATA_DIR, 'diagnoses.json')
+    diagnoses = []
+    if os.path.exists(diagnoses_file):
+        with open(diagnoses_file) as f:
+            all_diagnoses = json.load(f)
+            # Filter for this user (we'll need to track user in diagnoses)
+            diagnoses = all_diagnoses[-10:]  # Last 10
+    
+    return render_template('dashboard.html', 
+                         user_name=session['user_name'],
+                         subscription=user_sub)
+
+@app.route('/upgrade', methods=['GET', 'POST'])
+@login_required
+def upgrade():
+    user_id = session['user_id']
+    subs = load_subscriptions()
+    user_sub = subs.get(user_id, {'plan': 'free'})
+    
+    if request.method == 'POST':
+        plan = request.form.get('plan', 'free')
+        
+        # In production, this would integrate with Stripe
+        # For now, we simulate the upgrade
+        subs[user_id] = {
+            'plan': plan,
+            'diagnoses_used': user_sub.get('diagnoses_used', 0),
+            'upgraded': datetime.now().isoformat()
+        }
+        save_subscriptions(subs)
+        
+        flash(f'Upgraded to {plan.title()} plan!', 'success')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('upgrade.html', current_plan=user_sub.get('plan', 'free'))
+
+def check_diagnosis_limit():
+    """Check if user has reached their diagnosis limit"""
+    if 'user_id' not in session:
+        return True  # Not logged in, allow limited use
+    
+    user_id = session['user_id']
+    subs = load_subscriptions()
+    user_sub = subs.get(user_id, {'plan': 'free', 'diagnoses_used': 0})
+    
+    if user_sub.get('plan') == 'free':
+        return user_sub.get('diagnoses_used', 0) < 5
+    return True  # Premium unlimited
+
+def increment_diagnosis_count():
+    """Increment user's diagnosis count"""
+    if 'user_id' not in session:
+        return
+    
+    user_id = session['user_id']
+    subs = load_subscriptions()
+    if user_id in subs:
+        current = subs[user_id].get('diagnoses_used', 0)
+        subs[user_id]['diagnoses_used'] = current + 1
+        save_subscriptions(subs)
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    user_id = session['user_id']
+    users = load_users()
+    user = users.get(user_id, {})
+    
+    if request.method == 'POST':
+        # Update name
+        if request.form.get('name'):
+            users[user_id]['name'] = request.form.get('name')
+            session['user_name'] = request.form.get('name')
+        
+        # Update password
+        if request.form.get('new_password'):
+            users[user_id]['password'] = hash_password(request.form.get('new_password'))
+        
+        save_users(users)
+        flash('Profile updated!', 'success')
+    
+    return render_template('profile.html', user=user)
+
+# Override upload to check limits
+original_upload = None
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

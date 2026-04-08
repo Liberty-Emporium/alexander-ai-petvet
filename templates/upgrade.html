@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upgrade | Pet Vet AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); min-height: 100vh; color: #fff; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem 1rem; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .logo { font-size: 1.5rem; font-weight: 800; }
+        .logo span { color: #10b981; }
+        .nav { display: flex; gap: 1rem; }
+        .nav a { color: #94a3b8; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; transition: all 0.2s; }
+        .nav a:hover { background: #10b981; color: white; }
+        h1 { text-align: center; margin-bottom: 0.5rem; }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 2rem; }
+        .current { text-align: center; margin-bottom: 2rem; }
+        .current-badge { display: inline-block; padding: 0.5rem 1rem; border-radius: 20px; font-weight: 700; }
+        .current-badge.free { background: #64748b; }
+        .current-badge.premium { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+        .plans { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 2rem; }
+        .plan { background: rgba(255,255,255,0.05); border-radius: 20px; padding: 2rem; text-align: center; border: 2px solid transparent; }
+        .plan.popular { border-color: #10b981; position: relative; }
+        .plan.popular::before { content: "MOST POPULAR"; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #10b981; padding: 0.25rem 1rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .plan h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .plan .price { font-size: 3rem; font-weight: 800; color: #10b981; margin: 1rem 0; }
+        .plan .price span { font-size: 1rem; color: #94a3b8; font-weight: 400; }
+        .plan ul { list-style: none; text-align: left; margin: 1.5rem 0; }
+        .plan li { padding: 0.5rem 0; color: #cbd5e1; }
+        .plan li::before { content: "✓"; color: #10b981; margin-right: 0.5rem; }
+        .plan .btn { display: block; padding: 1rem; border-radius: 12px; text-decoration: none; font-weight: 700; transition: all 0.2s; }
+        .plan .btn-primary { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .plan .btn-primary:hover { transform: translateY(-2px); }
+        .plan .btn-outline { background: transparent; border: 2px solid #10b981; color: #10b981; }
+        .plan.current-plan { opacity: 0.6; }
+        .plan.current-plan .btn { background: #64748b; cursor: default; }
+        .note { text-align: center; color: #64748b; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="/" class="logo">Pet<span>Vet</span> AI</a>
+            <nav class="nav">
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('diagnose_page') }}">Diagnose</a>
+                <a href="{{ url_for('upgrade') }}" style="background:#10b981;color:white;">Upgrade</a>
+                <a href="{{ url_for('profile') }}">Profile</a>
+                <a href="{{ url_for('logout') }}">Logout</a>
+            </nav>
+        </header>
+        
+        <h1>⚡ Upgrade Your Plan</h1>
+        <p class="subtitle">Unlock full power of AI pet health diagnostics</p>
+        
+        <div class="current">
+            Current plan: <span class="current-badge {{ current_plan }}">{{ current_plan }}</span>
+        </div>
+        
+        <div class="plans">
+            <div class="plan {{ 'current-plan' if current_plan == 'free' else '' }}">
+                <h2>Free</h2>
+                <div class="price">$0<span>/mo</span></div>
+                <ul>
+                    <li>5 diagnoses per month</li>
+                    <li>Symptom checker</li>
+                    <li>Basic support</li>
+                </ul>
+                {% if current_plan == 'free' %}
+                <span class="btn btn-primary">Current Plan</span>
+                {% else %}
+                <a href="#" class="btn btn-outline" onclick="alert('Contact support to downgrade')">Downgrade</a>
+                {% endif %}
+            </div>
+            
+            <div class="plan popular {{ 'current-plan' if current_plan == 'premium' else '' }}">
+                <h2>Premium</h2>
+                <div class="price">$4.99<span>/mo</span></div>
+                <ul>
+                    <li>Unlimited diagnoses</li>
+                    <li>AI image analysis</li>
+                    <li>Priority support</li>
+                    <li>Pet profiles (unlimited)</li>
+                    <li>History & trends</li>
+                </ul>
+                {% if current_plan == 'premium' %}
+                <span class="btn btn-primary">Current Plan</span>
+                {% else %}
+                <form method="POST" style="display:inline;">
+                    <input type="hidden" name="plan" value="premium">
+                    <button type="submit" class="btn btn-primary" style="width:100%;cursor:pointer;">Upgrade Now</button>
+                </form>
+                {% endif %}
+            </div>
+            
+            <div class="plan {{ 'current-plan' if current_plan == 'enterprise' else '' }}">
+                <h2>Enterprise</h2>
+                <div class="price">$99<span>/mo</span></div>
+                <ul>
+                    <li>Everything in Premium</li>
+                    <li>API access</li>
+                    <li>Multi-user accounts</li>
+                    <li>Custom branding</li>
+                    <li>Bulk analysis</li>
+                </ul>
+                {% if current_plan == 'enterprise' %}
+                <span class="btn btn-primary">Current Plan</span>
+                {% else %}
+                <a href="mailto:support@petvetai.com?subject=Enterprise+Inquiry" class="btn btn-outline">Contact Us</a>
+                {% endif %}
+            </div>
+        </div>
+        
+        <p class="note">🔒 Secure payments powered by Stripe. Cancel anytime.</p>
+    </div>
+</body>
+</html>

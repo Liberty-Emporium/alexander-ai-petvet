@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile | Pet Vet AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); min-height: 100vh; color: #fff; }
+        .container { max-width: 600px; margin: 0 auto; padding: 2rem 1rem; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .logo { font-size: 1.5rem; font-weight: 800; }
+        .logo span { color: #10b981; }
+        .nav { display: flex; gap: 1rem; }
+        .nav a { color: #94a3b8; text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; }
+        .nav a:hover, .nav a.active { background: #10b981; color: white; }
+        h1 { margin-bottom: 0.5rem; }
+        .subtitle { color: #94a3b8; margin-bottom: 2rem; }
+        .card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; backdrop-filter: blur(10px); }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
+        input { width: 100%; padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 1rem; }
+        .btn { padding: 1rem 2rem; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+        .btn:hover { transform: translateY(-2px); }
+        .success { background: rgba(16,185,129,0.2); border: 1px solid #10b981; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; color: #6ee7b7; }
+        .danger-zone { border: 1px solid #dc2626; border-radius: 12px; padding: 1.5rem; margin-top: 2rem; }
+        .danger-zone h3 { color: #f87171; margin-bottom: 0.5rem; }
+        .danger-zone p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 1rem; }
+        .btn-danger { background: #dc2626; color: white; padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="/" class="logo">Pet<span>Vet</span> AI</a>
+            <nav class="nav">
+                <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('diagnose_page') }}">Diagnose</a>
+                <a href="{{ url_for('upgrade') }}">Upgrade</a>
+                <a href="{{ url_for('profile') }}" class="active">Profile</a>
+            </nav>
+        </header>
+        
+        <h1>⚙️ Profile Settings</h1>
+        <p class="subtitle">Manage your account</p>
+        
+        <div class="card">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                    <div class="{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            
+            <form method="POST">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" name="name" value="{{ user.name }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" value="{{ session.user_id }}" disabled style="opacity:0.5;">
+                    <small style="color:#64748b;display:block;margin-top:0.5rem;">Email cannot be changed</small>
+                </div>
+                <div class="form-group">
+                    <label>New Password (leave blank to keep current)</label>
+                    <input type="password" name="new_password" placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn">💾 Save Changes</button>
+            </form>
+            
+            <div class="danger-zone">
+                <h3>⚠️ Danger Zone</h3>
+                <p>Permanently delete your account and all data. This cannot be undone.</p>
+                <a href="#" class="btn-danger" onclick="alert('Contact support to delete account')">Delete Account</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
