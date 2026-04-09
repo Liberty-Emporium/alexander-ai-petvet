@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Vet AI - Add Pet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; color: #fff; }
+        .container { max-width: 600px; margin: 0 auto; padding: 2rem; }
+        h1 { font-size: 2rem; margin-bottom: 1rem; text-align: center; }
+        .form-group { margin-bottom: 1.5rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; color: #94a3b8; }
+        .form-group input, .form-group select { width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid #334155; background: #1e293b; color: #fff; font-size: 1rem; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #3b82f6; }
+        .species-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+        .species-option { padding: 1rem; border-radius: 12px; border: 2px solid #334155; background: #1e293b; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .species-option:hover { border-color: #3b82f6; }
+        .species-option.selected { border-color: #3b82f6; background: #3b82f6; }
+        .species-option .emoji { font-size: 2rem; }
+        .species-option .label { font-size: 0.8rem; margin-top: 0.5rem; }
+        .btn { width: 100%; padding: 1rem; border-radius: 12px; border: none; font-size: 1rem; cursor: pointer; transition: all 0.3s; }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-secondary { background: transparent; color: #64748b; margin-top: 1rem; }
+        .back-link { display: block; text-align: center; margin-top: 1rem; color: #3b82f6; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>➕ Add New Pet</h1>
+        
+        <form id="addPetForm">
+            <div class="form-group">
+                <label>Pet Type</label>
+                <div class="species-grid">
+                    <div class="species-option selected" onclick="selectSpecies('dog', this)">
+                        <div class="emoji">🐕</div>
+                        <div class="label">Dog</div>
+                    </div>
+                    <div class="species-option" onclick="selectSpecies('cat', this)">
+                        <div class="emoji">🐈</div>
+                        <div class="label">Cat</div>
+                    </div>
+                    <div class="species-option" onclick="selectSpecies('bird', this)">
+                        <div class="emoji">🦜</div>
+                        <div class="label">Bird</div>
+                    </div>
+                    <div class="species-option" onclick="selectSpecies('other', this)">
+                        <div class="emoji">🐾</div>
+                        <div class="label">Other</div>
+                    </div>
+                </div>
+                <input type="hidden" id="species" value="dog">
+            </div>
+            
+            <div class="form-group">
+                <label for="name">Pet Name</label>
+                <input type="text" id="name" placeholder="e.g., Max" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="breed">Breed</label>
+                <input type="text" id="breed" placeholder="e.g., Golden Retriever">
+            </div>
+            
+            <div class="form-group">
+                <label for="age">Age (years)</label>
+                <input type="number" id="age" placeholder="e.g., 3" min="0" max="30">
+            </div>
+            
+            <div class="form-group">
+                <label for="weight">Weight (lbs)</label>
+                <input type="number" id="weight" placeholder="e.g., 65" min="0">
+            </div>
+            
+            <div class="form-group">
+                <label for="notes">Special Notes</label>
+                <input type="text" id="notes" placeholder="Allergies, medications, etc.">
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Save Pet</button>
+            <a href="/pets" class="back-link">← Back to My Pets</a>
+        </form>
+    </div>
+    
+    <script>
+        function selectSpecies(species, el) {
+            document.querySelectorAll('.species-option').forEach(o => o.classList.remove('selected'));
+            el.classList.add('selected');
+            document.getElementById('species').value = species;
+        }
+        
+        document.getElementById('addPetForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            // In production, save to database
+            alert('Pet saved! (Demo mode)');
+            window.location.href = '/pets';
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Vet AI - Find a Vet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; color: #fff; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .subtitle { color: #94a3b8; }
+        .search-box { margin: 2rem 0; }
+        .search-box input { width: 100%; padding: 1rem; border-radius: 12px; border: 2px solid #3b82f6; background: #1e293b; color: #fff; font-size: 1rem; }
+        .filters { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+        .filter-btn { padding: 0.5rem 1rem; border-radius: 20px; border: 1px solid #3b82f6; background: transparent; color: #3b82f6; cursor: pointer; transition: all 0.3s; }
+        .filter-btn.active { background: #3b82f6; color: #fff; }
+        .vet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+        .vet-card { background: #1e293b; border-radius: 16px; padding: 1.5rem; border: 1px solid #334155; }
+        .vet-card h3 { color: #3b82f6; margin-bottom: 0.5rem; }
+        .vet-card .specialty { display: inline-block; background: #7c3aed; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; margin: 0.5rem 0; }
+        .vet-card .location { color: #94a3b8; margin: 0.5rem 0; }
+        .vet-card .phone { color: #22c55e; }
+        .vet-card .emergency { color: #ef4444; font-weight: bold; }
+        .back-link { display: inline-block; margin-top: 2rem; color: #3b82f6; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏥 Find a Vet</h1>
+            <p class="subtitle">Find nearby veterinary services for your pet</p>
+        </header>
+        
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search by location or name..." onkeyup="filterVets()">
+        </div>
+        
+        <div class="filters">
+            <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+            <button class="filter-btn" onclick="setFilter('emergency', this)">🚨 Emergency</button>
+            <button class="filter-btn" onclick="setFilter('general', this)">General Practice</button>
+            <button class="filter-btn" onclick="setFilter('specialist', this)">🏥 Specialists</button>
+        </div>
+        
+        <div class="vet-grid" id="vetGrid">
+            <!-- Vets will be populated here -->
+        </div>
+        
+        <a href="/pets" class="back-link">← Back to My Pets</a>
+    </div>
+    
+    <script>
+        const vets = [
+            { name: "PetMed Emergency Clinic", specialty: "Emergency", location: "24/7 Available", phone: "1-800-PET-MED1", emergency: true, description: "24/7 emergency care for all animals" },
+            { name: "Happy Paws Veterinary", specialty: "General Practice", location: "Downtown", phone: "(555) 123-4567", emergency: false, description: "Routine care, vaccinations, dental" },
+            { name: "Animal Wellness Center", specialty: "Holistic", location: "West Side", phone: "(555) 234-5678", emergency: false, description: "Natural and integrative veterinary care" },
+            { name: "Exotic Pet Specialists", specialty: "Exotic Animals", location: "East District", phone: "(555) 345-6789", emergency: false, description: "Reptiles, birds, small mammals" },
+            { name: "Paws & Claws Dental", specialty: "Dental", location: "Central", phone: "(555) 456-7890", emergency: false, description: "Specialized dental care for pets" },
+            { name: "Pet Cancer Center", specialty: "Oncology", location: "Medical District", phone: "(555) 567-8901", emergency: false, description: "Cancer treatment and oncology" },
+            { name: "BluePearl Pet Hospital", specialty: "Emergency", location: "Multiple Locations", phone: "1-888-BLU-PEARL", emergency: true, description: "Emergency and specialty care" },
+            { name: "VCA Animal Hospitals", specialty: "General Practice", location: "Nationwide", phone: "1-800-VCA-PETS", emergency: false, description: "General practice across the US" },
+            { name: "Banfield Pet Hospital", specialty: "General Practice", location: "In PetSmart Stores", phone: "1-800-BANFIELD", emergency: false, description: "Wellness plans and routine care" },
+            { name: "ASPCA Emergency", specialty: "Emergency", location: "National", phone: "1-888-666-2732", emergency: true, description: "Poison control and emergency" }
+        ];
+        
+        let currentFilter = 'all';
+        
+        function renderVets(filter = 'all', search = '') {
+            const grid = document.getElementById('vetGrid');
+            let filtered = vets;
+            
+            if (filter !== 'all') {
+                if (filter === 'emergency') {
+                    filtered = filtered.filter(v => v.emergency);
+                } else if (filter === 'specialist') {
+                    filtered = filtered.filter(v => ['specialist', 'Dental', 'Oncology', 'Exotic'].includes(v.specialty));
+                }
+            }
+            
+            if (search) {
+                filtered = filtered.filter(v => 
+                    v.name.toLowerCase().includes(search.toLowerCase()) ||
+                    v.location.toLowerCase().includes(search.toLowerCase())
+                );
+            }
+            
+            grid.innerHTML = filtered.map(vet => `
+                <div class="vet-card">
+                    <h3>${vet.name}</h3>
+                    <span class="specialty">${vet.specialty}</span>
+                    <p class="location">📍 ${vet.location}</p>
+                    <p>${vet.description}</p>
+                    <p class="phone">📞 ${vet.phone}</p>
+                    ${vet.emergency ? '<p class="emergency">🚨 24/7 Emergency</p>' : ''}
+                </div>
+            `).join('');
+        }
+        
+        function setFilter(filter, btn) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderVets(filter, document.getElementById('searchInput').value);
+        }
+        
+        function filterVets() {
+            renderVets(currentFilter, document.getElementById('searchInput').value);
+        }
+        
+        renderVets();
+    </script>
+</body>
+</html>

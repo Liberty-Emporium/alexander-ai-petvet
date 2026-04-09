@@ -1,0 +1,11 @@
+{
+  "appId": "com.petvetai.app",
+  "appName": "Pet Vet AI",
+  "webDir": "templates",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "preferredEdgePopoverIp": "0.0.0.0"
+  }
+}

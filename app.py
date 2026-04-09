@@ -685,3 +685,23 @@ original_upload = None
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+@app.route('/vets')
+def vets_page():
+    """Vet network page - find nearby vets"""
+    return render_template('vets.html')
+
+@app.route('/add-pet')
+def add_pet_page():
+    """Add new pet page"""
+    return render_template('add-pet.html')
+
+@app.route('/pet/<int:pet_id>')
+def pet_detail(pet_id):
+    """Pet detail page"""
+    # In production, fetch from database
+    return render_template('pets.html')  # Reuse for now
+
+@app.route('/pet/<int:pet_id>/edit')
+def pet_edit(pet_id):
+    """Edit pet page"""
+    return render_template('add-pet.html')  # Reuse form

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Vet AI - My Pets</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; color: #fff; }
+        .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+        header { text-align: center; padding: 2rem 0; }
+        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .subtitle { color: #94a3b8; }
+        .add-btn { display: inline-block; background: #3b82f6; color: #fff; padding: 0.75rem 1.5rem; border-radius: 12px; text-decoration: none; margin: 1rem 0; }
+        .pet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+        .pet-card { background: #1e293b; border-radius: 16px; padding: 1.5rem; border: 1px solid #334155; text-align: center; }
+        .pet-avatar { width: 100px; height: 100px; border-radius: 50%; background: #3b82f6; margin: 0 auto 1rem; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; }
+        .pet-card h3 { color: #3b82f6; margin-bottom: 0.5rem; }
+        .pet-info { color: #94a3b8; margin: 0.5rem 0; font-size: 0.9rem; }
+        .pet-actions { margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: center; }
+        .pet-actions a { padding: 0.5rem 1rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; }
+        .btn-edit { background: #6366f1; color: #fff; }
+        .btn-view { background: #22c55e; color: #fff; }
+        .empty-state { text-align: center; padding: 3rem; color: #64748b; }
+        .stats { display: flex; justify-content: center; gap: 2rem; margin: 1rem 0; flex-wrap: wrap; }
+        .stat { text-align: center; }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: #3b82f6; }
+        .stat-label { font-size: 0.8rem; color: #64748b; }
+        .back-link { display: inline-block; margin-top: 2rem; color: #3b82f6; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🐾 My Pets</h1>
+            <p class="subtitle">Manage your pet profiles and health records</p>
+        </header>
+        
+        <div style="text-align: center;">
+            <a href="/add-pet" class="add-btn">+ Add New Pet</a>
+        </div>
+        
+        <div class="pet-grid" id="petGrid">
+            <!-- Pets will be populated here -->
+        </div>
+        
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+    
+    <script>
+        // Demo pets - in production, load from database
+        const pets = [
+            { id: 1, name: "Max", species: "Dog", breed: "Golden Retriever", age: 3, weight: 65, photo: "🐕", vaccinations: ["Rabies", "DHPP", "Bordetella"], lastVisit: "2026-03-15" },
+            { id: 2, name: "Luna", species: "Cat", breed: "Siamese", age: 2, weight: 10, photo: "🐱", vaccinations: ["Rabies", "FVRCP"], lastVisit: "2026-02-20" },
+            { id: 3, name: "Buddy", species: "Dog", breed: "Labrador", age: 5, weight: 80, photo: "🐕‍🦺", vaccinations: ["Rabies", "DHPP", "Lyme"], lastVisit: "2026-01-10" }
+        ];
+        
+        function renderPets() {
+            const grid = document.getElementById('petGrid');
+            
+            if (pets.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <p style="font-size: 3rem;">🐾</p>
+                        <p>No pets yet!</p>
+                        <p>Add your first pet to get started</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = pets.map(pet => `
+                <div class="pet-card">
+                    <div class="pet-avatar">${pet.photo}</div>
+                    <h3>${pet.name}</h3>
+                    <p class="pet-info">${pet.breed}</p>
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-value">${pet.age}</div>
+                            <div class="stat-label">Years</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value">${pet.weight}</div>
+                            <div class="stat-label">lbs</div>
+                        </div>
+                    </div>
+                    <p class="pet-info">📅 Last visit: ${pet.lastVisit}</p>
+                    <div class="pet-actions">
+                        <a href="/pet/${pet.id}" class="pet-actions btn-view">View</a>
+                        <a href="/pet/${pet.id}/edit" class="pet-actions btn-edit">Edit</a>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        renderPets();
+    </script>
+</body>
+</html>
