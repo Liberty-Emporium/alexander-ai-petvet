@@ -20,7 +20,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'pet-vet-ai-secret-key-2024')
 
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
-DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+DATA_DIR = os.environ.get('DATA_DIR', os.path.join('/data'))
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'data', 'settings.json')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
