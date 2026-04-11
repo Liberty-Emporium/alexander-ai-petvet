@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My AI Settings | Pet Vet AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); min-height: 100vh; color: #fff; }
+        .container { max-width: 600px; margin: 0 auto; padding: 2rem 1rem; }
+        h1 { text-align: center; font-size: 2rem; margin-bottom: 0.5rem; }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 2rem; }
+        .card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; backdrop-filter: blur(10px); }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-weight: 600; margin-bottom: 0.5rem; color: #e2e8f0; }
+        input[type="text"], input[type="password"], select {
+            width: 100%; padding: 0.8rem; border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1);
+            color: white; font-size: 1rem;
+        }
+        select option { background: #1e3a5f; }
+        .help-text { font-size: 0.85rem; color: #94a3b8; margin-top: 0.5rem; }
+        .btn { width: 100%; padding: 1rem; background: linear-gradient(135deg, #10b981, #059669);
+            color: white; border: none; border-radius: 12px; font-size: 1.1rem;
+            font-weight: 700; cursor: pointer; margin-top: 1rem; }
+        .alert { padding: 1rem; border-radius: 10px; margin-bottom: 1rem; }
+        .alert-success { background: rgba(16,185,129,0.2); border: 1px solid #10b981; }
+        .alert-error { background: rgba(239,68,68,0.2); border: 1px solid #ef4444; }
+        .nav { display: flex; gap: 1rem; margin-bottom: 2rem; justify-content: center; }
+        .nav a { color: #94a3b8; text-decoration: none; padding: 0.5rem 1rem;
+            border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .nav a:hover { background: rgba(255,255,255,0.1); color: white; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="nav">
+        <a href="/dashboard">← Dashboard</a>
+        <a href="/diagnose">Diagnose</a>
+        <a href="/logout">Logout</a>
+    </div>
+    <h1>⚙️ My AI Settings</h1>
+    <p class="subtitle">Configure your personal AI API keys</p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+        <form method="POST">
+            <div class="form-group">
+                <label>🤖 Active AI Provider</label>
+                <select name="active_provider">
+                    <option value="groq" {% if user_keys.active_provider == 'groq' %}selected{% endif %}>Groq (Fast & Free tier)</option>
+                    <option value="qwen" {% if user_keys.active_provider == 'qwen' %}selected{% endif %}>Qwen (Affordable)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Groq API Key</label>
+                <input type="password" name="groq_key" placeholder="{% if user_keys.groq_key %}{{ user_keys.groq_key }}{% else %}Enter your Groq API key{% endif %}">
+                <p class="help-text">Get a free key at <a href="https://console.groq.com" target="_blank" style="color:#10b981;">console.groq.com</a></p>
+            </div>
+            <div class="form-group">
+                <label>Qwen API Key</label>
+                <input type="password" name="qwen_key" placeholder="{% if user_keys.qwen_key %}{{ user_keys.qwen_key }}{% else %}Enter your Qwen API key{% endif %}">
+                <p class="help-text">Get a key at <a href="https://dashscope.aliyuncs.com" target="_blank" style="color:#10b981;">dashscope.aliyuncs.com</a></p>
+            </div>
+            <button type="submit" class="btn">💾 Save My AI Settings</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

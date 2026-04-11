@@ -10,8 +10,9 @@ import uuid
 import base64
 import requests
 import hashlib
+import sqlite3
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session, g
 from werkzeug.utils import secure_filename
 from functools import wraps
 
@@ -30,6 +31,35 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
+# ==================== DATABASE ====================
+DB_FILE = os.path.join(DATA_DIR, 'petvet.db')
+
+def get_db():
+    if 'db' not in g:
+        g.db = sqlite3.connect(DB_FILE)
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+@app.teardown_appcontext
+def close_db(e=None):
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+def init_db():
+    db = sqlite3.connect(DB_FILE)
+    db.execute('''CREATE TABLE IF NOT EXISTS user_api_keys (
+        user_id TEXT PRIMARY KEY,
+        groq_key TEXT DEFAULT '',
+        qwen_key TEXT DEFAULT '',
+        active_provider TEXT DEFAULT 'groq',
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    db.commit()
+    db.close()
+
+init_db()
+
 # Settings management
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
@@ -41,15 +71,22 @@ def save_settings(settings):
     with open(SETTINGS_FILE, 'w') as f:
         json.dump(settings, f, indent=2)
 
-def get_groq_api_key():
-    """Get API key from settings or environment variable"""
+def get_groq_api_key(user_id=None):
+    """Get API key - user's own key first, then system admin key"""
+    # Try user-specific key first
+    if user_id:
+        db = get_db()
+        c = db.cursor()
+        c.execute('SELECT groq_key FROM user_api_keys WHERE user_id = ?', (user_id,))
+        row = c.fetchone()
+        if row and row[0]:
+            return row[0]
+    # Fall back to system admin key from settings
     settings = load_settings()
-    if settings.get('groq_api_key'):
-        return settings['groq_api_key']
-    return os.environ.get('GROQ_API_KEY', '')
+    return settings.get('groq_api_key', '')
 
-# Groq API Configuration
-GROQ_API_KEY = os.environ.get('GROQ_API_KEY', '')
+# Groq API Configuration (no env var fallback)
+GROQ_API_KEY = ''
 GROQ_MODEL = "llama-3.2-90b-vision-preview"  # Groq's vision model
 
 def allowed_file(filename):
@@ -265,7 +302,8 @@ def upload_photo():
         
         # Get AI analysis if enabled
         ai_diagnosis = None
-        if use_ai and GROQ_API_KEY:
+        api_key = get_groq_api_key(session.get('user_id'))
+        if use_ai and api_key:
             ai_diagnosis = analyze_pet_image(filepath, animal_type)
         
         # Also run symptom matching (fallback / comparison)
@@ -401,7 +439,8 @@ def api_diagnose():
     
     # Get AI analysis
     ai_diagnosis = None
-    if use_ai and GROQ_API_KEY:
+    api_key = get_groq_api_key(session.get('user_id'))
+    if use_ai and api_key:
         ai_diagnosis = analyze_pet_image(filepath, animal_type)
     
     # Get symptom diagnosis
@@ -449,33 +488,57 @@ def pets_page():
 
 @app.route('/settings', methods=['GET', 'POST'])
 def settings_page():
-    """Settings page for API keys and preferences"""
+    """Admin system-wide settings for API keys"""
     settings = load_settings()
     
     if request.method == 'POST':
-        # Update settings
         new_settings = {
             'groq_api_key': request.form.get('groq_api_key', ''),
             'default_animal': request.form.get('default_animal', 'dog')
         }
-        
-        # Mask the API key for display (show only first 8 chars)
         if new_settings['groq_api_key']:
             settings.update(new_settings)
             save_settings(settings)
             flash('Settings saved successfully!', 'success')
         else:
             flash('Please enter a valid API key', 'error')
-        
         settings = load_settings()
     
-    # Mask API key for display
     display_settings = settings.copy()
     if display_settings.get('groq_api_key'):
         key = display_settings['groq_api_key']
         display_settings['groq_api_key'] = key[:8] + '...' if len(key) > 8 else '***'
     
     return render_template('settings.html', settings=display_settings)
+
+@app.route('/my-settings', methods=['GET', 'POST'])
+@login_required
+def my_settings():
+    """Per-user AI API key settings"""
+    user_id = session['user_id']
+    db = get_db()
+    
+    if request.method == 'POST':
+        groq_key = request.form.get('groq_key', '').strip()
+        qwen_key = request.form.get('qwen_key', '').strip()
+        active_provider = request.form.get('active_provider', 'groq')
+        db.execute('''INSERT OR REPLACE INTO user_api_keys 
+            (user_id, groq_key, qwen_key, active_provider, updated_at)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)''',
+            (user_id, groq_key, qwen_key, active_provider))
+        db.commit()
+        flash('Your AI settings saved!', 'success')
+        return redirect(url_for('my_settings'))
+    
+    row = db.execute('SELECT * FROM user_api_keys WHERE user_id = ?', (user_id,)).fetchone()
+    user_keys = dict(row) if row else {'groq_key': '', 'qwen_key': '', 'active_provider': 'groq'}
+    
+    # Mask keys for display
+    for k in ['groq_key', 'qwen_key']:
+        if user_keys.get(k):
+            user_keys[k] = user_keys[k][:8] + '...'
+    
+    return render_template('my_settings.html', user_keys=user_keys)
 
 @app.route('/api/settings', methods=['GET'])
 def api_get_settings():
