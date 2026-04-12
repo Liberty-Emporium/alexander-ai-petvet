@@ -31,6 +31,16 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
+# ==================== AUTH HELPERS ====================
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
+
 # ==================== DATABASE ====================
 DB_FILE = os.path.join(DATA_DIR, 'petvet.db')
 
@@ -580,14 +590,6 @@ def hash_password(password):
 
 def verify_password(password, hashed):
     return hash_password(password) == hashed
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if 'user_id' not in session:
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
-    return decorated
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
