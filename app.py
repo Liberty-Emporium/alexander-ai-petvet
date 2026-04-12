@@ -1,11 +1,10 @@
 """
-Pet Vet AI - MVP Flask Application with Groq AI Integration
+Pet Vet AI - Multi-Tenant Flask Application with Groq AI Integration
 AI-powered pet health diagnostic app
 """
 
 import os
 import json
-import csv
 import uuid
 import base64
 import requests
@@ -21,8 +20,7 @@ app.secret_key = os.environ.get('SECRET_KEY', 'pet-vet-ai-secret-key-2024')
 
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
-DATA_DIR = os.environ.get('DATA_DIR', os.path.join('/data'))
-SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'data', 'settings.json')
+DATA_DIR = os.environ.get('DATA_DIR', '/data')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -31,15 +29,40 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
+PLAN_LIMITS = {
+    'free':       {'diagnoses_per_month': 5,   'pets': 2},
+    'pro':        {'diagnoses_per_month': 999,  'pets': 999},
+    'enterprise': {'diagnoses_per_month': 9999, 'pets': 9999},
+}
+
 # ==================== AUTH HELPERS ====================
 
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if 'user_id' not in session:
+            flash('Please log in to continue.', 'error')
             return redirect(url_for('login'))
         return f(*args, **kwargs)
     return decorated
+
+def plan_required(min_plan):
+    """Decorator to require a minimum plan level."""
+    order = ['free', 'pro', 'enterprise']
+    def decorator(f):
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if 'user_id' not in session:
+                flash('Please log in to continue.', 'error')
+                return redirect(url_for('login'))
+            db = get_db()
+            user = db.execute('SELECT plan FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+            if not user or order.index(user['plan']) < order.index(min_plan):
+                flash(f'This feature requires the {min_plan.title()} plan.', 'error')
+                return redirect(url_for('upgrade'))
+            return f(*args, **kwargs)
+        return decorated
+    return decorator
 
 # ==================== DATABASE ====================
 DB_FILE = os.path.join(DATA_DIR, 'petvet.db')
@@ -58,74 +81,154 @@ def close_db(e=None):
 
 def init_db():
     db = sqlite3.connect(DB_FILE)
-    db.execute('''CREATE TABLE IF NOT EXISTS user_api_keys (
-        user_id TEXT PRIMARY KEY,
-        groq_key TEXT DEFAULT '',
-        qwen_key TEXT DEFAULT '',
-        active_provider TEXT DEFAULT 'groq',
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
+    db.executescript('''
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            password_hash TEXT NOT NULL,
+            plan TEXT NOT NULL DEFAULT 'free',
+            stripe_customer_id TEXT,
+            diagnoses_used_this_month INTEGER NOT NULL DEFAULT 0,
+            month_reset TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS pets (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            name TEXT NOT NULL,
+            animal_type TEXT NOT NULL,
+            breed TEXT,
+            age TEXT,
+            notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS diagnoses (
+            id TEXT PRIMARY KEY,
+            user_id TEXT NOT NULL,
+            pet_id TEXT,
+            animal_type TEXT,
+            image_file TEXT,
+            symptoms TEXT,
+            ai_diagnosis TEXT,
+            confidence TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS user_api_keys (
+            user_id TEXT PRIMARY KEY,
+            groq_key TEXT DEFAULT '',
+            qwen_key TEXT DEFAULT '',
+            active_provider TEXT DEFAULT 'groq',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS admin_settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
+    ''')
+    # Create default admin account
+    admin_id = str(uuid.uuid4())
+    existing = db.execute("SELECT id FROM users WHERE email = 'admin'").fetchone()
+    if not existing:
+        db.execute(
+            "INSERT INTO users (id, email, name, password_hash, plan) VALUES (?, ?, ?, ?, ?)",
+            (admin_id, 'admin', 'Admin', hash_password('admin1'), 'enterprise')
+        )
     db.commit()
     db.close()
 
 init_db()
 
-# Settings management
-def load_settings():
-    if os.path.exists(SETTINGS_FILE):
-        with open(SETTINGS_FILE) as f:
-            return json.load(f)
-    return {}
+# ==================== HELPERS ====================
 
-def save_settings(settings):
-    with open(SETTINGS_FILE, 'w') as f:
-        json.dump(settings, f, indent=2)
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
-def get_groq_api_key(user_id=None):
-    """Get API key - user's own key first, then system admin key"""
-    # Try user-specific key first
-    if user_id:
-        db = get_db()
-        c = db.cursor()
-        c.execute('SELECT groq_key FROM user_api_keys WHERE user_id = ?', (user_id,))
-        row = c.fetchone()
-        if row and row[0]:
-            return row[0]
-    # Fall back to system admin key from settings
-    settings = load_settings()
-    return settings.get('groq_api_key', '')
-
-# Groq API Configuration (no env var fallback)
-GROQ_API_KEY = ''
-GROQ_MODEL = "llama-3.2-90b-vision-preview"  # Groq's vision model
+def verify_password(password, hashed):
+    return hash_password(password) == hashed
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def get_current_user():
+    if 'user_id' not in session:
+        return None
+    db = get_db()
+    return db.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+
+def get_admin_setting(key, default=''):
+    db = get_db()
+    row = db.execute('SELECT value FROM admin_settings WHERE key = ?', (key,)).fetchone()
+    return row['value'] if row else default
+
+def set_admin_setting(key, value):
+    db = get_db()
+    db.execute('INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)', (key, value))
+    db.commit()
+
+def get_groq_api_key(user_id=None):
+    """Get API key — user's own key first, then system admin key."""
+    if user_id:
+        db = get_db()
+        row = db.execute('SELECT groq_key FROM user_api_keys WHERE user_id = ?', (user_id,)).fetchone()
+        if row and row['groq_key']:
+            return row['groq_key']
+    return get_admin_setting('groq_api_key', '')
+
+def check_and_reset_monthly_quota(user):
+    """Reset monthly diagnosis count if month has changed."""
+    db = get_db()
+    current_month = datetime.now().strftime('%Y-%m')
+    if user['month_reset'] != current_month:
+        db.execute(
+            'UPDATE users SET diagnoses_used_this_month = 0, month_reset = ? WHERE id = ?',
+            (current_month, user['id'])
+        )
+        db.commit()
+
+def user_can_diagnose(user):
+    """Returns True if user is within their plan's monthly limit."""
+    check_and_reset_monthly_quota(user)
+    db = get_db()
+    user = db.execute('SELECT * FROM users WHERE id = ?', (user['id'],)).fetchone()
+    limit = PLAN_LIMITS.get(user['plan'], PLAN_LIMITS['free'])['diagnoses_per_month']
+    return user['diagnoses_used_this_month'] < limit
+
+def increment_diagnosis_count(user_id):
+    db = get_db()
+    db.execute(
+        'UPDATE users SET diagnoses_used_this_month = diagnoses_used_this_month + 1 WHERE id = ?',
+        (user_id,)
+    )
+    db.commit()
+
 # ==================== GROQ AI ANALYSIS ====================
 
-def analyze_pet_image(image_path, animal_type="dog"):
-    """
-    Use Groq's vision model to analyze a pet health image
-    Returns AI's diagnostic assessment
-    """
-    groq_api_key = get_groq_api_key()
+GROQ_MODEL = "llama-3.2-90b-vision-preview"
+
+def analyze_pet_image(image_path, animal_type="dog", user_id=None):
+    groq_api_key = get_groq_api_key(user_id)
     if not groq_api_key:
         return {"error": "Groq API key not configured. Go to Settings to add your key.", "success": False}
-    
+
     try:
-        # Convert image to base64
         with open(image_path, "rb") as img_file:
             img_base64 = base64.b64encode(img_file.read()).decode('utf-8')
-        
-        # Prepare the prompt for the AI
+
         animal_names = {
             "dog": "dog", "cat": "cat", "horse": "horse", "goat": "goat",
             "sheep": "sheep", "cow": "cow", "reptile": "reptile/snake/lizard",
             "small_pet": "small pet (hamster/gerbil/rabbit/guinea pig)"
         }
         animal = animal_names.get(animal_type, "pet")
-        
+
         prompt = f"""You are a veterinary expert AI. Analyze this photo of a {animal} and identify any visible health conditions or symptoms.
 
 Look for:
@@ -150,45 +253,26 @@ Respond in JSON format:
 
 If the image is unclear or not of a pet, return {{"error": "Image unclear or not a pet"}}"""
 
-        # Call Groq API
         url = "https://api.groq.com/openai/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {groq_api_key}",
-            "Content-Type": "application/json"
-        }
-        
+        headers = {"Authorization": f"Bearer {groq_api_key}", "Content-Type": "application/json"}
         data = {
             "model": GROQ_MODEL,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}
-                        }
-                    ]
-                }
-            ],
+            "messages": [{"role": "user", "content": [
+                {"type": "text", "text": prompt},
+                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}}
+            ]}],
             "temperature": 0.3,
             "max_tokens": 1000
         }
-        
+
         response = requests.post(url, headers=headers, json=data, timeout=30)
-        
         if response.status_code == 200:
-            result = response.json()
-            content = result['choices'][0]['message']['content']
-            
-            # Parse JSON from response
+            content = response.json()['choices'][0]['message']['content']
             try:
-                # Try to extract JSON from the response
                 if "```json" in content:
                     content = content.split("```json")[1].split("```")[0]
                 elif "```" in content:
                     content = content.split("```")[1].split("```")[0]
-                
                 diagnosis = json.loads(content)
                 diagnosis["success"] = True
                 return diagnosis
@@ -196,7 +280,6 @@ If the image is unclear or not of a pet, return {{"error": "Image unclear or not
                 return {"diagnosis": content[:200], "success": True, "confidence": "low"}
         else:
             return {"error": f"API error: {response.status_code}", "success": False}
-            
     except Exception as e:
         return {"error": str(e), "success": False}
 
@@ -213,7 +296,7 @@ CONDITIONS = {
         {"id": "d7", "name": "Dental Disease", "symptoms": ["bad_breath", "red_gums", "drooling", "difficulty_eating"], "severity": "high", "description": "Gum disease and tooth decay"},
         {"id": "d8", "name": "Paw Injury", "symptoms": ["limping", "swollen_paw", "cuts_on_paw", "licking_paw"], "severity": "moderate", "description": "Injury to the paw pad or between toes"},
         {"id": "d9", "name": "Skin Tag", "symptoms": ["skin_growth", "hanging_tag", "soft", "same_color"], "severity": "low", "description": "Benign skin growth"},
-        {"id": "d10", "name": "Hot Spot (Acute)", "symptoms": ["oozing_skin", "red_ inflamed", "painful", "quick_onset"], "severity": "high", "description": "Rapidly developing irritated skin area"},
+        {"id": "d10", "name": "Hot Spot (Acute)", "symptoms": ["oozing_skin", "red_inflamed", "painful", "quick_onset"], "severity": "high", "description": "Rapidly developing irritated skin area"},
     ],
     "cat": [
         {"id": "c1", "name": "Ear Mites", "symptoms": ["dark_discharge", "scratching_ears", "head_shaking", "odor"], "severity": "moderate", "description": "Parasitic ear infection"},
@@ -271,325 +354,107 @@ CONDITIONS = {
 
 @app.route('/')
 def index():
-    """Landing page"""
     return render_template('index.html')
 
 @app.route('/diagnose')
 def diagnose_page():
-    """Main diagnosis page"""
     return render_template('diagnose.html', conditions=CONDITIONS)
 
 @app.route('/upload', methods=['POST'])
 def upload_photo():
-    """Handle photo upload and analysis"""
-    # Check if user is logged in and has available diagnoses
-    if 'user_id' in session:
-        subs = load_subscriptions()
-        user_sub = subs.get(session['user_id'], {'plan': 'free', 'diagnoses_used': 0})
-        
-        if user_sub.get('plan') == 'free' and user_sub.get('diagnoses_used', 0) >= 5:
-            flash('Free plan limit reached (5/month). Upgrade for unlimited diagnoses!', 'error')
+    user = get_current_user()
+    if user:
+        if not user_can_diagnose(user):
+            flash('Monthly diagnosis limit reached. Upgrade for more!', 'error')
             return redirect(url_for('upgrade'))
-    
+
     if 'photo' not in request.files:
         flash('No photo uploaded', 'error')
         return redirect(url_for('diagnose_page'))
-    
+
     file = request.files['photo']
     animal_type = request.form.get('animal_type', 'dog')
     use_ai = request.form.get('use_ai', 'true') == 'true'
     symptoms = request.form.getlist('symptoms')
-    
+    pet_id = request.form.get('pet_id')
+
     if file.filename == '':
         flash('No photo selected', 'error')
         return redirect(url_for('diagnose_page'))
-    
+
     if file and allowed_file(file.filename):
-        # Save the file
         filename = f"{uuid.uuid4()}_{secure_filename(file.filename)}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
-        
-        # Get AI analysis if enabled
+
         ai_diagnosis = None
-        api_key = get_groq_api_key(session.get('user_id'))
-        if use_ai and api_key:
-            ai_diagnosis = analyze_pet_image(filepath, animal_type)
-        
-        # Also run symptom matching (fallback / comparison)
+        user_id = user['id'] if user else None
+        if use_ai and get_groq_api_key(user_id):
+            ai_diagnosis = analyze_pet_image(filepath, animal_type, user_id)
+
         symptom_diagnosis = analyze_symptoms(animal_type, symptoms)
-        
-        # Combine results
         diagnosis = combine_diagnoses(ai_diagnosis, symptom_diagnosis, use_ai)
-        
-        # Save diagnosis record
-        save_diagnosis(animal_type, filename, symptoms, diagnosis, ai_diagnosis)
-        
-        # Increment diagnosis count for logged-in users
-        if 'user_id' in session:
-            increment_diagnosis_count()
-        
-        return render_template('result.html', 
-                             diagnosis=diagnosis,
-                             animal_type=animal_type,
-                             image=filename,
-                             ai_used=use_ai and ai_diagnosis and ai_diagnosis.get('success'))
-    
+
+        # Save diagnosis record scoped to user
+        if user:
+            db = get_db()
+            db.execute(
+                'INSERT INTO diagnoses (id, user_id, pet_id, animal_type, image_file, symptoms, ai_diagnosis, confidence) VALUES (?,?,?,?,?,?,?,?)',
+                (str(uuid.uuid4()), user['id'], pet_id, animal_type, filename,
+                 json.dumps(symptoms),
+                 ai_diagnosis.get('diagnosis') if ai_diagnosis else None,
+                 diagnosis.get('confidence', 'unknown'))
+            )
+            db.commit()
+            increment_diagnosis_count(user['id'])
+
+        return render_template('result.html',
+                               diagnosis=diagnosis,
+                               animal_type=animal_type,
+                               image=filename,
+                               ai_used=use_ai and ai_diagnosis and ai_diagnosis.get('success'))
+
     flash('Invalid file type', 'error')
     return redirect(url_for('diagnose_page'))
 
 def combine_diagnoses(ai_diagnosis, symptom_diagnosis, use_ai):
-    """Combine AI analysis with symptom matching"""
     if use_ai and ai_diagnosis and ai_diagnosis.get('success'):
         return {
             'ai_diagnosis': ai_diagnosis,
             'symptom_diagnosis': symptom_diagnosis,
-            'message': 'AI has analyzed your image. View results below.',
+            'message': 'AI has analyzed your image.',
             'confidence': ai_diagnosis.get('confidence', 'medium'),
             'combined': True
         }
-    else:
-        return {
-            'ai_diagnosis': None,
-            'symptom_diagnosis': symptom_diagnosis,
-            'message': symptom_diagnosis.get('message', 'Based on symptoms:'),
-            'confidence': symptom_diagnosis.get('confidence', 'low'),
-            'combined': False
-        }
+    return {
+        'ai_diagnosis': None,
+        'symptom_diagnosis': symptom_diagnosis,
+        'message': symptom_diagnosis.get('message', 'Based on symptoms:'),
+        'confidence': symptom_diagnosis.get('confidence', 'low'),
+        'combined': False
+    }
 
 def analyze_symptoms(animal_type, selected_symptoms):
-    """Simple symptom matching algorithm"""
     animal_conditions = CONDITIONS.get(animal_type, [])
-    
     if not selected_symptoms:
-        return {
-            'conditions': animal_conditions[:3],
-            'message': 'Please select symptoms for more accurate diagnosis',
-            'confidence': 'low'
-        }
-    
+        return {'conditions': animal_conditions[:3], 'message': 'Select symptoms for a more accurate diagnosis', 'confidence': 'low'}
+
     matches = []
     for condition in animal_conditions:
-        condition_symptoms = condition.get('symptoms', [])
-        matching = len(set(selected_symptoms) & set(condition_symptoms))
+        matching = len(set(selected_symptoms) & set(condition.get('symptoms', [])))
         if matching > 0:
-            match_percent = (matching / len(condition_symptoms)) * 100
-            matches.append({
-                'condition': condition,
-                'match_count': matching,
-                'match_percent': round(match_percent, 1)
-            })
-    
+            match_percent = (matching / len(condition['symptoms'])) * 100
+            matches.append({'condition': condition, 'match_count': matching, 'match_percent': round(match_percent, 1)})
+
     matches.sort(key=lambda x: x['match_percent'], reverse=True)
-    
     if matches:
         top = matches[0]
         confidence = 'high' if top['match_percent'] > 50 else 'medium' if top['match_percent'] > 25 else 'low'
-        return {
-            'conditions': matches[:3],
-            'message': f"Based on {len(selected_symptoms)} symptoms:",
-            'confidence': confidence,
-            'top_match': top
-        }
-    
-    return {
-        'conditions': [],
-        'message': 'No matching conditions found. Please consult a vet.',
-        'confidence': 'none'
-    }
+        return {'conditions': matches[:3], 'message': f"Based on {len(selected_symptoms)} symptoms:", 'confidence': confidence, 'top_match': top}
 
-def save_diagnosis(animal_type, image_file, symptoms, diagnosis, ai_diagnosis=None):
-    """Save diagnosis for learning"""
-    record = {
-        'timestamp': datetime.now().isoformat(),
-        'animal_type': animal_type,
-        'image': image_file,
-        'symptoms': symptoms,
-        'ai_diagnosis': ai_diagnosis.get('diagnosis') if ai_diagnosis else None,
-        'confidence': diagnosis.get('confidence', 'unknown')
-    }
-    
-    file_path = os.path.join(DATA_DIR, 'diagnoses.json')
-    if os.path.exists(file_path):
-        with open(file_path) as f:
-            data = json.load(f)
-    else:
-        data = []
-    
-    data.append(record)
-    
-    with open(file_path, 'w') as f:
-        json.dump(data, f, indent=2)
+    return {'conditions': [], 'message': 'No matching conditions found. Please consult a vet.', 'confidence': 'none'}
 
-@app.route('/about')
-def about():
-    """About page"""
-    return render_template('about.html')
-
-@app.route('/contact')
-def contact():
-    """Contact page"""
-    return render_template('contact.html')
-
-# API endpoint for mobile app
-@app.route('/api/diagnose', methods=['POST'])
-def api_diagnose():
-    """API endpoint for diagnosis"""
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided'}), 400
-    
-    animal_type = request.form.get('animal_type', 'dog')
-    use_ai = request.form.get('use_ai', 'true') == 'true'
-    symptoms = request.form.getlist('symptoms')
-    
-    image = request.files['image']
-    filename = f"{uuid.uuid4()}_{secure_filename(image.filename)}"
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    image.save(filepath)
-    
-    # Get AI analysis
-    ai_diagnosis = None
-    api_key = get_groq_api_key(session.get('user_id'))
-    if use_ai and api_key:
-        ai_diagnosis = analyze_pet_image(filepath, animal_type)
-    
-    # Get symptom diagnosis
-    symptom_diagnosis = analyze_symptoms(animal_type, symptoms)
-    
-    # Combine
-    diagnosis = combine_diagnoses(ai_diagnosis, symptom_diagnosis, use_ai)
-    
-    return jsonify({
-        'success': True,
-        'image_id': filename,
-        'diagnosis': diagnosis
-    })
-
-# Feedback endpoint for learning
-@app.route('/api/feedback', methods=['POST'])
-def api_feedback():
-    """Receive user feedback to improve AI"""
-    data = request.get_json()
-    feedback_file = os.path.join(DATA_DIR, 'feedback.json')
-    
-    if os.path.exists(feedback_file):
-        with open(feedback_file) as f:
-            feedback_data = json.load(f)
-    else:
-        feedback_data = []
-    
-    feedback_data.append({
-        'timestamp': datetime.now().isoformat(),
-        'diagnosis_id': data.get('diagnosis_id'),
-        'correct': data.get('correct'),
-        'correct_diagnosis': data.get('correct_diagnosis'),
-        'notes': data.get('notes')
-    })
-    
-    with open(feedback_file, 'w') as f:
-        json.dump(feedback_data, f, indent=2)
-    
-    return jsonify({'success': True, 'message': 'Feedback saved - AI is learning!'})
-
-@app.route('/pets')
-def pets_page():
-    """Pet profiles page"""
-    return render_template('pets.html')
-
-@app.route('/settings', methods=['GET', 'POST'])
-def settings_page():
-    """Admin system-wide settings for API keys"""
-    settings = load_settings()
-    
-    if request.method == 'POST':
-        new_settings = {
-            'groq_api_key': request.form.get('groq_api_key', ''),
-            'default_animal': request.form.get('default_animal', 'dog')
-        }
-        if new_settings['groq_api_key']:
-            settings.update(new_settings)
-            save_settings(settings)
-            flash('Settings saved successfully!', 'success')
-        else:
-            flash('Please enter a valid API key', 'error')
-        settings = load_settings()
-    
-    display_settings = settings.copy()
-    if display_settings.get('groq_api_key'):
-        key = display_settings['groq_api_key']
-        display_settings['groq_api_key'] = key[:8] + '...' if len(key) > 8 else '***'
-    
-    return render_template('settings.html', settings=display_settings)
-
-@app.route('/my-settings', methods=['GET', 'POST'])
-@login_required
-def my_settings():
-    """Per-user AI API key settings"""
-    user_id = session['user_id']
-    db = get_db()
-    
-    if request.method == 'POST':
-        groq_key = request.form.get('groq_key', '').strip()
-        qwen_key = request.form.get('qwen_key', '').strip()
-        active_provider = request.form.get('active_provider', 'groq')
-        db.execute('''INSERT OR REPLACE INTO user_api_keys 
-            (user_id, groq_key, qwen_key, active_provider, updated_at)
-            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)''',
-            (user_id, groq_key, qwen_key, active_provider))
-        db.commit()
-        flash('Your AI settings saved!', 'success')
-        return redirect(url_for('my_settings'))
-    
-    row = db.execute('SELECT * FROM user_api_keys WHERE user_id = ?', (user_id,)).fetchone()
-    user_keys = dict(row) if row else {'groq_key': '', 'qwen_key': '', 'active_provider': 'groq'}
-    
-    # Mask keys for display
-    for k in ['groq_key', 'qwen_key']:
-        if user_keys.get(k):
-            user_keys[k] = user_keys[k][:8] + '...'
-    
-    return render_template('my_settings.html', user_keys=user_keys)
-
-@app.route('/api/settings', methods=['GET'])
-def api_get_settings():
-    """API to check if settings are configured"""
-    settings = load_settings()
-    return jsonify({
-        'configured': bool(settings.get('groq_api_key')),
-        'ai_enabled': settings.get('ai_enabled', True),
-        'default_animal': settings.get('default_animal', 'dog')
-    })
-
-# ==================== USER ACCOUNTS & SUBSCRIPTIONS ====================
-
-USERS_FILE = os.path.join(DATA_DIR, 'users.json')
-SUBSCRIPTIONS_FILE = os.path.join(DATA_DIR, 'subscriptions.json')
-
-def load_users():
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE) as f:
-            return json.load(f)
-    return {}
-
-def save_users(users):
-    with open(USERS_FILE, 'w') as f:
-        json.dump(users, f, indent=2)
-
-def load_subscriptions():
-    if os.path.exists(SUBSCRIPTIONS_FILE):
-        with open(SUBSCRIPTIONS_FILE) as f:
-            return json.load(f)
-    return {}
-
-def save_subscriptions(subs):
-    with open(SUBSCRIPTIONS_FILE, 'w') as f:
-        json.dump(subs, f, indent=2)
-
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def verify_password(password, hashed):
-    return hash_password(password) == hashed
+# ==================== AUTH ROUTES ====================
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -597,37 +462,28 @@ def register():
         email = request.form.get('email', '').lower().strip()
         password = request.form.get('password', '')
         name = request.form.get('name', '')
-        
+
         if not email or not password or not name:
             flash('Please fill in all fields', 'error')
             return redirect(url_for('register'))
-        
-        users = load_users()
-        if email in users:
+
+        db = get_db()
+        if db.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone():
             flash('Email already registered', 'error')
             return redirect(url_for('register'))
-        
-        users[email] = {
-            'name': name,
-            'password': hash_password(password),
-            'created': datetime.now().isoformat()
-        }
-        save_users(users)
-        
-        # Create free subscription
-        subs = load_subscriptions()
-        subs[email] = {
-            'plan': 'free',
-            'diagnoses_used': 0,
-            'created': datetime.now().isoformat()
-        }
-        save_subscriptions(subs)
-        
-        session['user_id'] = email
+
+        user_id = str(uuid.uuid4())
+        db.execute(
+            'INSERT INTO users (id, email, name, password_hash, plan, month_reset) VALUES (?,?,?,?,?,?)',
+            (user_id, email, name, hash_password(password), 'free', datetime.now().strftime('%Y-%m'))
+        )
+        db.commit()
+
+        session['user_id'] = user_id
         session['user_name'] = name
         flash('Account created! Welcome to Pet Vet AI!', 'success')
         return redirect(url_for('dashboard'))
-    
+
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -635,17 +491,18 @@ def login():
     if request.method == 'POST':
         email = request.form.get('email', '').lower().strip()
         password = request.form.get('password', '')
-        
-        users = load_users()
-        if email in users and verify_password(password, users[email]['password']):
-            session['user_id'] = email
-            session['user_name'] = users[email]['name']
+
+        db = get_db()
+        user = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+        if user and verify_password(password, user['password_hash']):
+            session['user_id'] = user['id']
+            session['user_name'] = user['name']
             flash('Logged in successfully!', 'success')
             return redirect(url_for('dashboard'))
-        
+
         flash('Invalid email or password', 'error')
         return redirect(url_for('login'))
-    
+
     return render_template('login.html')
 
 @app.route('/logout')
@@ -654,119 +511,201 @@ def logout():
     flash('Logged out successfully', 'success')
     return redirect(url_for('index'))
 
+# ==================== DASHBOARD ====================
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    user = get_current_user()
+    check_and_reset_monthly_quota(user)
+    db = get_db()
+    user = db.execute('SELECT * FROM users WHERE id = ?', (user['id'],)).fetchone()
+
+    limit = PLAN_LIMITS[user['plan']]['diagnoses_per_month']
+    diagnoses = db.execute(
+        'SELECT * FROM diagnoses WHERE user_id = ? ORDER BY created_at DESC LIMIT 10',
+        (user['id'],)
+    ).fetchall()
+    pets = db.execute('SELECT * FROM pets WHERE user_id = ?', (user['id'],)).fetchall()
+
+    return render_template('dashboard.html',
+                           user=user,
+                           user_name=user['name'],
+                           subscription={'plan': user['plan'], 'diagnoses_used': user['diagnoses_used_this_month']},
+                           diagnoses_limit=limit,
+                           diagnoses=diagnoses,
+                           pets=pets)
+
+# ==================== PETS ====================
+
+@app.route('/pets')
+@login_required
+def pets_page():
+    db = get_db()
+    pets = db.execute('SELECT * FROM pets WHERE user_id = ? ORDER BY created_at DESC', (session['user_id'],)).fetchall()
+    return render_template('pets.html', pets=pets)
+
+@app.route('/add-pet', methods=['GET', 'POST'])
+@login_required
+def add_pet_page():
+    if request.method == 'POST':
+        db = get_db()
+        db.execute(
+            'INSERT INTO pets (id, user_id, name, animal_type, breed, age, notes) VALUES (?,?,?,?,?,?,?)',
+            (str(uuid.uuid4()), session['user_id'],
+             request.form.get('name'), request.form.get('animal_type'),
+             request.form.get('breed'), request.form.get('age'), request.form.get('notes'))
+        )
+        db.commit()
+        flash('Pet added!', 'success')
+        return redirect(url_for('pets_page'))
+    return render_template('add-pet.html')
+
+# ==================== SETTINGS ====================
+
+@app.route('/settings', methods=['GET', 'POST'])
+@login_required
+def settings_page():
+    """Admin-only system-wide API key settings."""
+    user = get_current_user()
+    if user['plan'] != 'enterprise':
+        flash('Admin settings require enterprise plan.', 'error')
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'POST':
+        key = request.form.get('groq_api_key', '').strip()
+        if key:
+            set_admin_setting('groq_api_key', key)
+            flash('System API key saved!', 'success')
+        else:
+            flash('Please enter a valid API key.', 'error')
+
+    raw = get_admin_setting('groq_api_key', '')
+    display_key = (raw[:8] + '...') if len(raw) > 8 else ('***' if raw else '')
+    return render_template('settings.html', settings={'groq_api_key': display_key})
+
+@app.route('/my-settings', methods=['GET', 'POST'])
+@login_required
+def my_settings():
     user_id = session['user_id']
-    subs = load_subscriptions()
-    user_sub = subs.get(user_id, {'plan': 'free', 'diagnoses_used': 0})
-    
-    # Get diagnosis history
-    diagnoses_file = os.path.join(DATA_DIR, 'diagnoses.json')
-    diagnoses = []
-    if os.path.exists(diagnoses_file):
-        with open(diagnoses_file) as f:
-            all_diagnoses = json.load(f)
-            # Filter for this user (we'll need to track user in diagnoses)
-            diagnoses = all_diagnoses[-10:]  # Last 10
-    
-    return render_template('dashboard.html', 
-                         user_name=session['user_name'],
-                         subscription=user_sub)
+    db = get_db()
+
+    if request.method == 'POST':
+        groq_key = request.form.get('groq_key', '').strip()
+        qwen_key = request.form.get('qwen_key', '').strip()
+        active_provider = request.form.get('active_provider', 'groq')
+        db.execute(
+            'INSERT OR REPLACE INTO user_api_keys (user_id, groq_key, qwen_key, active_provider, updated_at) VALUES (?,?,?,?,CURRENT_TIMESTAMP)',
+            (user_id, groq_key, qwen_key, active_provider)
+        )
+        db.commit()
+        flash('Your AI settings saved!', 'success')
+        return redirect(url_for('my_settings'))
+
+    row = db.execute('SELECT * FROM user_api_keys WHERE user_id = ?', (user_id,)).fetchone()
+    user_keys = dict(row) if row else {'groq_key': '', 'qwen_key': '', 'active_provider': 'groq'}
+    for k in ['groq_key', 'qwen_key']:
+        if user_keys.get(k):
+            user_keys[k] = user_keys[k][:8] + '...'
+
+    return render_template('my_settings.html', user_keys=user_keys)
+
+# ==================== UPGRADE / BILLING ====================
 
 @app.route('/upgrade', methods=['GET', 'POST'])
 @login_required
 def upgrade():
-    user_id = session['user_id']
-    subs = load_subscriptions()
-    user_sub = subs.get(user_id, {'plan': 'free'})
-    
+    user = get_current_user()
+
     if request.method == 'POST':
         plan = request.form.get('plan', 'free')
-        
-        # In production, this would integrate with Stripe
-        # For now, we simulate the upgrade
-        subs[user_id] = {
-            'plan': plan,
-            'diagnoses_used': user_sub.get('diagnoses_used', 0),
-            'upgraded': datetime.now().isoformat()
-        }
-        save_subscriptions(subs)
-        
+        db = get_db()
+        db.execute('UPDATE users SET plan = ? WHERE id = ?', (plan, user['id']))
+        db.commit()
         flash(f'Upgraded to {plan.title()} plan!', 'success')
         return redirect(url_for('dashboard'))
-    
-    return render_template('upgrade.html', current_plan=user_sub.get('plan', 'free'))
 
-def check_diagnosis_limit():
-    """Check if user has reached their diagnosis limit"""
-    if 'user_id' not in session:
-        return True  # Not logged in, allow limited use
-    
-    user_id = session['user_id']
-    subs = load_subscriptions()
-    user_sub = subs.get(user_id, {'plan': 'free', 'diagnoses_used': 0})
-    
-    if user_sub.get('plan') == 'free':
-        return user_sub.get('diagnoses_used', 0) < 5
-    return True  # Premium unlimited
+    return render_template('upgrade.html', current_plan=user['plan'])
 
-def increment_diagnosis_count():
-    """Increment user's diagnosis count"""
-    if 'user_id' not in session:
-        return
-    
-    user_id = session['user_id']
-    subs = load_subscriptions()
-    if user_id in subs:
-        current = subs[user_id].get('diagnoses_used', 0)
-        subs[user_id]['diagnoses_used'] = current + 1
-        save_subscriptions(subs)
+# ==================== PROFILE ====================
 
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    user_id = session['user_id']
-    users = load_users()
-    user = users.get(user_id, {})
-    
+    user = get_current_user()
+    db = get_db()
+
     if request.method == 'POST':
-        # Update name
         if request.form.get('name'):
-            users[user_id]['name'] = request.form.get('name')
+            db.execute('UPDATE users SET name = ? WHERE id = ?', (request.form.get('name'), user['id']))
             session['user_name'] = request.form.get('name')
-        
-        # Update password
         if request.form.get('new_password'):
-            users[user_id]['password'] = hash_password(request.form.get('new_password'))
-        
-        save_users(users)
+            db.execute('UPDATE users SET password_hash = ? WHERE id = ?',
+                       (hash_password(request.form.get('new_password')), user['id']))
+        db.commit()
         flash('Profile updated!', 'success')
-    
+        return redirect(url_for('profile'))
+
+    user = get_current_user()
     return render_template('profile.html', user=user)
 
-# Override upload to check limits
-original_upload = None
+# ==================== API ENDPOINTS ====================
+
+@app.route('/api/diagnose', methods=['POST'])
+def api_diagnose():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image provided'}), 400
+
+    animal_type = request.form.get('animal_type', 'dog')
+    use_ai = request.form.get('use_ai', 'true') == 'true'
+    symptoms = request.form.getlist('symptoms')
+    user_id = session.get('user_id')
+
+    image = request.files['image']
+    filename = f"{uuid.uuid4()}_{secure_filename(image.filename)}"
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    image.save(filepath)
+
+    ai_diagnosis = None
+    if use_ai and get_groq_api_key(user_id):
+        ai_diagnosis = analyze_pet_image(filepath, animal_type, user_id)
+
+    symptom_diagnosis = analyze_symptoms(animal_type, symptoms)
+    diagnosis = combine_diagnoses(ai_diagnosis, symptom_diagnosis, use_ai)
+
+    return jsonify({'success': True, 'image_id': filename, 'diagnosis': diagnosis})
+
+@app.route('/api/feedback', methods=['POST'])
+def api_feedback():
+    data = request.get_json()
+    db = get_db()
+    # Store feedback linked to user if logged in
+    user_id = session.get('user_id', 'anonymous')
+    db.execute(
+        'INSERT INTO diagnoses (id, user_id, ai_diagnosis, confidence) VALUES (?,?,?,?)',
+        (str(uuid.uuid4()), user_id, data.get('correct_diagnosis'), 'feedback')
+    )
+    db.commit()
+    return jsonify({'success': True, 'message': 'Feedback saved!'})
+
+@app.route('/api/settings', methods=['GET'])
+def api_get_settings():
+    configured = bool(get_admin_setting('groq_api_key'))
+    return jsonify({'configured': configured, 'ai_enabled': True, 'default_animal': 'dog'})
+
+# ==================== MISC ====================
+
+@app.route('/about')
+def about():
+    return render_template('about.html')
+
+@app.route('/contact')
+def contact():
+    return render_template('contact.html')
+
+@app.route('/vets')
+def vets_page():
+    return render_template('vets.html')
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-@app.route('/vets')
-def vets_page():
-    """Vet network page - find nearby vets"""
-    return render_template('vets.html')
-
-@app.route('/add-pet')
-def add_pet_page():
-    """Add new pet page"""
-    return render_template('add-pet.html')
-
-@app.route('/pet/<int:pet_id>')
-def pet_detail(pet_id):
-    """Pet detail page"""
-    # In production, fetch from database
-    return render_template('pets.html')  # Reuse for now
-
-@app.route('/pet/<int:pet_id>/edit')
-def pet_edit(pet_id):
-    """Edit pet page"""
-    return render_template('add-pet.html')  # Reuse form
