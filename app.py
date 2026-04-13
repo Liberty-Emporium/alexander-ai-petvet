@@ -654,6 +654,93 @@ def logout():
     flash('Logged out successfully', 'success')
     return redirect(url_for('index'))
 
+# ==================== SMTP ====================
+
+def send_email(to, subject, body):
+    import smtplib
+    from email.mime.text import MIMEText
+    cfg = {
+        'host':     os.environ.get('SMTP_HOST', ''),
+        'port':     int(os.environ.get('SMTP_PORT', 587)),
+        'user':     os.environ.get('SMTP_USER', ''),
+        'password': os.environ.get('SMTP_PASSWORD', ''),
+        'from':     os.environ.get('SMTP_FROM', os.environ.get('SMTP_USER', '')),
+    }
+    if not cfg['host'] or not cfg['user'] or not cfg['password']:
+        print(f'[EMAIL] SMTP not configured, skipping email to {to}', flush=True)
+        return False
+    try:
+        msg = MIMEText(body, 'plain', 'utf-8')
+        msg['Subject'] = subject
+        msg['From'] = cfg['from']
+        msg['To'] = to
+        with smtplib.SMTP(cfg['host'], cfg['port'], timeout=15) as s:
+            s.ehlo(); s.starttls()
+            s.login(cfg['user'], cfg['password'])
+            s.sendmail(cfg['from'], [to], msg.as_string())
+        return True
+    except Exception as e:
+        print(f'[EMAIL] Failed: {e}', flush=True)
+        return False
+
+# ==================== FORGOT PASSWORD ====================
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    sent = False
+    if request.method == 'POST':
+        email = request.form.get('email', '').lower().strip()
+        db = get_db()
+        user = db.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+        if user:
+            token = hashlib.sha256(os.urandom(32)).hexdigest()
+            expires = (datetime.now() + __import__('datetime').timedelta(hours=1)).isoformat()
+            db.execute('''CREATE TABLE IF NOT EXISTS password_resets (
+                token TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at TEXT NOT NULL)''')
+            db.execute('DELETE FROM password_resets WHERE user_id = ?', (user['id'],))
+            db.execute('INSERT INTO password_resets (token, user_id, expires_at) VALUES (?,?,?)',
+                       (token, user['id'], expires))
+            db.commit()
+            reset_url = request.host_url.rstrip('/') + f'/reset-password/{token}'
+            send_email(email, 'Pet Vet AI — Reset Your Password',
+                f'Hi {user["name"]},\n\nReset your password here (valid 1 hour):\n{reset_url}\n\n— Pet Vet AI')
+        sent = True
+    return render_template('forgot_password.html', sent=sent)
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    db = get_db()
+    try:
+        db.execute('CREATE TABLE IF NOT EXISTS password_resets (token TEXT PRIMARY KEY, user_id TEXT NOT NULL, expires_at TEXT NOT NULL)')
+        record = db.execute('SELECT * FROM password_resets WHERE token = ?', (token,)).fetchone()
+    except Exception:
+        record = None
+    if not record:
+        flash('Invalid or expired reset link.', 'error')
+        return redirect(url_for('forgot_password'))
+    from datetime import datetime as dt
+    if dt.utcnow() > dt.fromisoformat(record['expires_at']):
+        db.execute('DELETE FROM password_resets WHERE token = ?', (token,))
+        db.commit()
+        flash('Reset link expired. Please request a new one.', 'error')
+        return redirect(url_for('forgot_password'))
+    error = None
+    if request.method == 'POST':
+        new_pass = request.form.get('new_password', '')
+        confirm = request.form.get('confirm_password', '')
+        if len(new_pass) < 6:
+            error = 'Password must be at least 6 characters.'
+        elif new_pass != confirm:
+            error = 'Passwords do not match.'
+        else:
+            db.execute('UPDATE users SET password_hash = ? WHERE id = ?',
+                       (hashlib.sha256(new_pass.encode()).hexdigest(), record['user_id']))
+            db.execute('DELETE FROM password_resets WHERE token = ?', (token,))
+            db.commit()
+            flash('Password reset! You can now log in.', 'success')
+            return redirect(url_for('login'))
+    return render_template('reset_password.html', token=token, error=error)
+
 @app.route('/dashboard')
 @login_required
 def dashboard():
