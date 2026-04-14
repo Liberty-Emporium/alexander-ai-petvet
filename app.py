@@ -10,6 +10,7 @@ import uuid
 import base64
 import requests
 import hashlib
+import bcrypt
 import sqlite3
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session, g
@@ -644,10 +645,18 @@ def save_subscriptions(subs):
         json.dump(subs, f, indent=2)
 
 def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def _is_sha256(h):
+    return len(h) == 64 and all(c in '0123456789abcdef' for c in h)
 
 def verify_password(password, hashed):
-    return hash_password(password) == hashed
+    if _is_sha256(hashed):
+        return hashlib.sha256(password.encode()).hexdigest() == hashed
+    try:
+        return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+    except Exception:
+        return False
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -707,7 +716,7 @@ def login():
             return redirect(url_for('dashboard'))
         
         flash('Invalid email or password', 'error')
-        return redirect(url_for('login'))
+        return render_template('login.html'), 200
     
     return render_template('login.html')
 
