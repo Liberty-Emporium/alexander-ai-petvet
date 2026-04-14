@@ -74,6 +74,27 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
 app.secret_key = os.environ.get('SECRET_KEY', 'pet-vet-ai-secret-key-2024')
 
+import secrets as _secrets_module
+
+def _get_csrf_token():
+    """Generate or retrieve CSRF token from session."""
+    if 'csrf_token' not in session:
+        session['csrf_token'] = _secrets_module.token_hex(32)
+    return session['csrf_token']
+
+def _validate_csrf():
+    """Validate CSRF token on POST requests. Returns True if valid."""
+    if request.method != 'POST':
+        return True
+    # Skip API routes
+    if request.path.startswith('/api/'):
+        return True
+    token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
+    return token and token == session.get('csrf_token')
+
+app.jinja_env.globals['csrf_token'] = _get_csrf_token
+
+
 # Configuration
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), 'uploads')
 DATA_DIR = os.environ.get('DATA_DIR', os.path.join('/data'))
