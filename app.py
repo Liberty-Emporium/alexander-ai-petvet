@@ -857,3 +857,91 @@ def pet_detail(pet_id):
 def pet_edit(pet_id):
     """Edit pet page"""
     return render_template('add-pet.html')  # Reuse form
+
+# ==================== ADMIN OVERSEER ====================
+
+ADMIN_USER = os.environ.get('ADMIN_USER', 'admin')
+ADMIN_PASS_HASH = hashlib.sha256(os.environ.get('ADMIN_PASSWORD', 'admin1').encode()).hexdigest()
+
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('is_admin'):
+            flash('Admin access required.', 'error')
+            return redirect(url_for('admin_login'))
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '').strip()
+        if username == ADMIN_USER and hashlib.sha256(password.encode()).hexdigest() == ADMIN_PASS_HASH:
+            session['is_admin'] = True
+            session['admin_user'] = username
+            return redirect(url_for('overseer'))
+        flash('Invalid admin credentials.', 'error')
+    return render_template('admin_login.html')
+
+@app.route('/admin/logout')
+def admin_logout():
+    session.pop('is_admin', None)
+    session.pop('admin_user', None)
+    return redirect(url_for('index'))
+
+@app.route('/overseer')
+@admin_required
+def overseer():
+    users = load_users()
+    subs  = load_subscriptions()
+    user_list = []
+    for email, u in users.items():
+        sub = subs.get(email, {})
+        user_list.append({
+            'email':      email,
+            'name':       u.get('name', ''),
+            'plan':       sub.get('plan', 'free'),
+            'diagnoses':  sub.get('diagnoses_used', 0),
+            'created':    u.get('created', '')[:10] if u.get('created') else '',
+        })
+    user_list.sort(key=lambda x: x['created'], reverse=True)
+    paid_count = sum(1 for u in user_list if u['plan'] != 'free')
+    mrr = paid_count * 9.99
+    return render_template('overseer.html',
+        users=user_list, total=len(user_list),
+        paid=paid_count, free=len(user_list)-paid_count, mrr=mrr)
+
+@app.route('/overseer/user/<email>/upgrade', methods=['POST'])
+@admin_required
+def overseer_upgrade(email):
+    subs = load_subscriptions()
+    if email not in subs: subs[email] = {}
+    subs[email]['plan'] = 'premium'
+    subs[email]['diagnoses_limit'] = 999999
+    save_subscriptions(subs)
+    flash(f'{email} upgraded to Premium.', 'success')
+    return redirect(url_for('overseer'))
+
+@app.route('/overseer/user/<email>/downgrade', methods=['POST'])
+@admin_required
+def overseer_downgrade(email):
+    subs = load_subscriptions()
+    if email not in subs: subs[email] = {}
+    subs[email]['plan'] = 'free'
+    subs[email]['diagnoses_limit'] = 3
+    save_subscriptions(subs)
+    flash(f'{email} downgraded to Free.', 'success')
+    return redirect(url_for('overseer'))
+
+@app.route('/overseer/user/<path:email>/delete', methods=['POST'])
+@admin_required
+def overseer_delete_user(email):
+    users = load_users()
+    subs  = load_subscriptions()
+    users.pop(email, None)
+    subs.pop(email, None)
+    save_users(users)
+    save_subscriptions(subs)
+    flash(f'{email} deleted.', 'success')
+    return redirect(url_for('overseer'))

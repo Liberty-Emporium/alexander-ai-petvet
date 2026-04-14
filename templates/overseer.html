@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overseer — Pet Vet AI</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="background:#f8f9fa;">
+<nav class="navbar navbar-dark" style="background:#1a1a2e;">
+  <div class="container-fluid">
+    <span class="navbar-brand fw-bold">🐾 Pet Vet AI — Overseer</span>
+    <div>
+      <span class="text-light small me-3">admin</span>
+      <a href="/admin/logout" class="btn btn-sm btn-outline-light">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<div class="container py-4">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div class="alert alert-{% if cat=='error' %}danger{% else %}success{% endif %}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+
+  <!-- Stats -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div style="font-size:2rem;font-weight:900;color:#1a1a2e;">{{ total }}</div>
+        <div class="text-muted small">Total Users</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div style="font-size:2rem;font-weight:900;color:#16a34a;">{{ paid }}</div>
+        <div class="text-muted small">Paid Users</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div style="font-size:2rem;font-weight:900;color:#6b7280;">{{ free }}</div>
+        <div class="text-muted small">Free Users</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm text-center p-3">
+        <div style="font-size:2rem;font-weight:900;color:#7c3aed;">${{ "%.2f"|format(mrr) }}</div>
+        <div class="text-muted small">MRR</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Table -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-dark text-white d-flex justify-content-between">
+      <strong>👥 All Users ({{ total }})</strong>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr><th>Name</th><th>Email</th><th>Plan</th><th>Diagnoses</th><th>Joined</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td>{{ u.name }}</td>
+            <td>{{ u.email }}</td>
+            <td>
+              {% if u.plan == 'premium' %}
+                <span class="badge bg-success">Premium $9.99/mo</span>
+              {% else %}
+                <span class="badge bg-secondary">Free</span>
+              {% endif %}
+            </td>
+            <td>{{ u.diagnoses }}</td>
+            <td>{{ u.created }}</td>
+            <td>
+              {% if u.plan != 'premium' %}
+              <form method="POST" action="/overseer/user/{{ u.email }}/upgrade" style="display:inline">
+                <button class="btn btn-sm btn-success">Upgrade</button>
+              </form>
+              {% else %}
+              <form method="POST" action="/overseer/user/{{ u.email }}/downgrade" style="display:inline">
+                <button class="btn btn-sm btn-outline-warning">Downgrade</button>
+              </form>
+              {% endif %}
+              <form method="POST" action="/overseer/user/{{ u.email }}/delete" style="display:inline"
+                    onsubmit="return confirm('Delete {{ u.email }}?')">
+                <button class="btn btn-sm btn-outline-danger">Delete</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">No users yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</body>
+</html>
