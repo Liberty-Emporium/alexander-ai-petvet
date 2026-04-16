@@ -113,53 +113,100 @@
         <a href="/" class="back-link">← Back to Home</a>
     </div>
     
-    <script>
-        // Demo pets - in production, load from database
-        const pets = [
-            { id: 1, name: "Max", species: "Dog", breed: "Golden Retriever", age: 3, weight: 65, photo: "🐕", vaccinations: ["Rabies", "DHPP", "Bordetella"], lastVisit: "2026-03-15" },
-            { id: 2, name: "Luna", species: "Cat", breed: "Siamese", age: 2, weight: 10, photo: "🐱", vaccinations: ["Rabies", "FVRCP"], lastVisit: "2026-02-20" },
-            { id: 3, name: "Buddy", species: "Dog", breed: "Labrador", age: 5, weight: 80, photo: "🐕‍🦺", vaccinations: ["Rabies", "DHPP", "Lyme"], lastVisit: "2026-01-10" }
-        ];
-        
-        function renderPets() {
-            const grid = document.getElementById('petGrid');
-            
-            if (pets.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1/-1;">
-                        <p style="font-size: 3rem;">🐾</p>
-                        <p>No pets yet!</p>
-                        <p>Add your first pet to get started</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            grid.innerHTML = pets.map(pet => `
-                <div class="pet-card">
-                    <div class="pet-avatar">${pet.photo}</div>
-                    <h3>${pet.name}</h3>
-                    <p class="pet-info">${pet.breed}</p>
-                    <div class="stats">
-                        <div class="stat">
-                            <div class="stat-value">${pet.age}</div>
-                            <div class="stat-label">Years</div>
-                        </div>
-                        <div class="stat">
-                            <div class="stat-value">${pet.weight}</div>
-                            <div class="stat-label">lbs</div>
-                        </div>
-                    </div>
-                    <p class="pet-info">📅 Last visit: ${pet.lastVisit}</p>
-                    <div class="pet-actions">
-                        <a href="/pet/${pet.id}" class="pet-actions btn-view">View</a>
-                        <a href="/pet/${pet.id}/edit" class="pet-actions btn-edit">Edit</a>
-                    </div>
-                </div>
-            `).join('');
-        }
-        
+<!-- Goodbye modal -->
+<div id="goodbye-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#1e293b;border:1px solid #334155;border-radius:20px;padding:2.5rem 2rem;max-width:380px;width:90%;text-align:center;">
+    <div style="font-size:2.5rem;margin-bottom:1rem;">🐾</div>
+    <h3 style="color:#f1f5f9;font-size:1.2rem;margin-bottom:0.75rem;">Take care, <span id="goodbye-name"></span>.</h3>
+    <p style="color:#94a3b8;font-size:0.92rem;line-height:1.6;margin-bottom:1.75rem;">We hope your journey together was full of good moments. Wishing you both nothing but the best.</p>
+    <div style="display:flex;gap:0.75rem;justify-content:center;">
+      <button onclick="confirmDelete()" style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:0.6rem 1.4rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>
+      <button onclick="cancelDelete()" style="background:#334155;color:#f1f5f9;border:none;border-radius:8px;padding:0.6rem 1.4rem;font-weight:700;cursor:pointer;font-family:inherit;">Keep</button>
+    </div>
+  </div>
+</div>
+
+<script>
+    var allPets = [];
+    var pendingDeleteId = null;
+    const SPECIES_EMOJI = {dog:'🐕',cat:'🐱',bird:'🦜',rabbit:'🐰',fish:'🐠',other:'🐾'};
+
+    async function loadPets() {
+        try {
+            const res = await fetch('/api/pets');
+            if (!res.ok) { window.location.href = '/login'; return; }
+            allPets = await res.json();
+        } catch(e) { allPets = []; }
         renderPets();
-    </script>
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('saved')) {
+            showToast('🐾 ' + decodeURIComponent(params.get('saved')) + ' has been added!');
+            window.history.replaceState({}, '', '/pets');
+        }
+    }
+
+    function renderPets() {
+        const grid = document.getElementById('petGrid');
+        if (!allPets.length) {
+            grid.innerHTML = `
+                <div style="grid-column:1/-1;text-align:center;padding:3rem;color:#64748b;">
+                    <p style="font-size:3rem;margin-bottom:1rem;">🐾</p>
+                    <p style="font-size:1.1rem;margin-bottom:0.5rem;">No pets yet.</p>
+                    <p style="margin-bottom:1.5rem;">Add your first pet to get started.</p>
+                    <a href="/add-pet" style="background:#3b82f6;color:#fff;padding:0.7rem 1.5rem;border-radius:10px;text-decoration:none;font-weight:700;">+ Add a Pet</a>
+                </div>`;
+            return;
+        }
+        grid.innerHTML = allPets.map(pet => {
+            const emoji = SPECIES_EMOJI[pet.species] || '🐾';
+            const age   = pet.age   ? `<div class="stat"><div class="stat-value">${esc(pet.age)} yrs</div><div class="stat-label">Age</div></div>` : '';
+            const wt    = pet.weight? `<div class="stat"><div class="stat-value">${esc(pet.weight)} lbs</div><div class="stat-label">Weight</div></div>` : '';
+            const notes = pet.notes ? `<p class="pet-info" style="font-size:0.82rem;color:#64748b;">${esc(pet.notes)}</p>` : '';
+            return `
+            <div class="pet-card">
+                <div class="pet-avatar">${emoji}</div>
+                <h3>${esc(pet.name)}</h3>
+                <p class="pet-info">${esc(pet.breed || pet.species)}</p>
+                <div class="stats">${age}${wt}</div>
+                ${notes}
+                <div class="pet-actions" style="margin-top:1rem;display:flex;gap:0.5rem;justify-content:center;">
+                    <a href="/diagnose" style="padding:0.45rem 1rem;border-radius:7px;background:#3b82f6;color:#fff;text-decoration:none;font-size:0.83rem;font-weight:700;">🔬 Diagnose</a>
+                    <button onclick="askDelete('${pet.id}','${esc(pet.name)}')" style="padding:0.45rem 1rem;border-radius:7px;background:transparent;border:1px solid #ef4444;color:#ef4444;font-size:0.83rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+    function askDelete(id, name) {
+        pendingDeleteId = id;
+        document.getElementById('goodbye-name').textContent = name;
+        document.getElementById('goodbye-modal').style.display = 'flex';
+    }
+    function cancelDelete() {
+        pendingDeleteId = null;
+        document.getElementById('goodbye-modal').style.display = 'none';
+    }
+    async function confirmDelete() {
+        if (!pendingDeleteId) return;
+        document.getElementById('goodbye-modal').style.display = 'none';
+        try {
+            await fetch('/api/pets/' + pendingDeleteId, { method: 'DELETE' });
+            allPets = allPets.filter(p => p.id !== pendingDeleteId);
+            pendingDeleteId = null;
+            renderPets();
+        } catch(e) { alert('Could not remove pet. Please try again.'); }
+    }
+    function showToast(msg) {
+        const t = document.createElement('div');
+        t.textContent = msg;
+        t.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid #334155;color:#f1f5f9;padding:0.75rem 1.5rem;border-radius:10px;font-size:0.9rem;z-index:9000;box-shadow:0 4px 20px rgba(0,0,0,0.4);';
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3500);
+    }
+
+    loadPets();
+</script>
 </body>
 </html>

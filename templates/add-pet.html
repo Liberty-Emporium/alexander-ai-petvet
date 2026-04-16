@@ -163,11 +163,44 @@
             document.getElementById('species').value = species;
         }
         
-        document.getElementById('addPetForm').addEventListener('submit', function(e) {
+        document.getElementById('addPetForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            // In production, save to database
-            alert('Pet saved! (Demo mode)');
-            window.location.href = '/pets';
+            const btn = this.querySelector('button[type=submit]');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            const payload = {
+                name:    document.getElementById('name').value.trim(),
+                species: document.getElementById('species').value,
+                breed:   document.getElementById('breed').value.trim(),
+                age:     document.getElementById('age').value,
+                weight:  document.getElementById('weight') ? document.getElementById('weight').value : '',
+                notes:   document.getElementById('notes') ? document.getElementById('notes').value.trim() : '',
+            };
+            if (!payload.name) {
+                alert('Please enter a name for your pet.');
+                btn.disabled = false;
+                btn.textContent = 'Save Pet';
+                return;
+            }
+            try {
+                const res = await fetch('/api/pets', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok && data.ok) {
+                    window.location.href = '/pets?saved=' + encodeURIComponent(payload.name);
+                } else {
+                    alert('Error: ' + (data.error || 'Could not save pet. Please try again.'));
+                    btn.disabled = false;
+                    btn.textContent = 'Save Pet';
+                }
+            } catch(err) {
+                alert('Connection error. Please try again.');
+                btn.disabled = false;
+                btn.textContent = 'Save Pet';
+            }
         });
     </script>
 </body>

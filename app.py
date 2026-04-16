@@ -686,6 +686,21 @@ def api_get_settings():
 
 USERS_FILE = os.path.join(DATA_DIR, 'users.json')
 SUBSCRIPTIONS_FILE = os.path.join(DATA_DIR, 'subscriptions.json')
+PETS_FILE = os.path.join(DATA_DIR, 'pets.json')
+
+def load_pets():
+    if os.path.exists(PETS_FILE):
+        with open(PETS_FILE) as f:
+            return json.load(f)
+    return {}
+
+def save_pets(pets):
+    with open(PETS_FILE, 'w') as f:
+        json.dump(pets, f, indent=2)
+
+def get_user_pets(user_id):
+    pets = load_pets()
+    return pets.get(user_id, [])
 
 def load_users():
     if os.path.exists(USERS_FILE):
@@ -1151,19 +1166,67 @@ def vets_page():
 
 @app.route('/add-pet')
 def add_pet_page():
-    """Add new pet page"""
     return render_template('add-pet.html')
 
-@app.route('/pet/<int:pet_id>')
-def pet_detail(pet_id):
-    """Pet detail page"""
-    # In production, fetch from database
-    return render_template('pets.html')  # Reuse for now
+# ── Pets API ─────────────────────────────────────────────
+@app.route('/api/pets', methods=['GET'])
+@login_required
+def api_get_pets():
+    """Return all pets for the logged-in user."""
+    return jsonify(get_user_pets(session['user_id']))
 
-@app.route('/pet/<int:pet_id>/edit')
-def pet_edit(pet_id):
-    """Edit pet page"""
-    return render_template('add-pet.html')  # Reuse form
+@app.route('/api/pets', methods=['POST'])
+@login_required
+def api_save_pet():
+    """Add or update a pet."""
+    data = request.get_json()
+    if not data or not data.get('name'):
+        return jsonify({'error': 'Name is required'}), 400
+    user_id = session['user_id']
+    pets = load_pets()
+    user_pets = pets.get(user_id, [])
+    # Edit existing
+    pet_id = data.get('id')
+    if pet_id:
+        for i, p in enumerate(user_pets):
+            if p['id'] == pet_id:
+                data['updated_at'] = datetime.utcnow().isoformat()
+                user_pets[i] = {**p, **data}
+                pets[user_id] = user_pets
+                save_pets(pets)
+                return jsonify({'ok': True, 'pet': user_pets[i]})
+        return jsonify({'error': 'Pet not found'}), 404
+    # Add new
+    new_pet = {
+        'id': str(uuid.uuid4()),
+        'name':    data.get('name', '').strip(),
+        'species': data.get('species', 'dog'),
+        'breed':   data.get('breed', '').strip(),
+        'age':     data.get('age', ''),
+        'weight':  data.get('weight', ''),
+        'notes':   data.get('notes', '').strip(),
+        'created_at': datetime.utcnow().isoformat(),
+        'updated_at': datetime.utcnow().isoformat(),
+    }
+    user_pets.append(new_pet)
+    pets[user_id] = user_pets
+    save_pets(pets)
+    return jsonify({'ok': True, 'pet': new_pet}), 201
+
+@app.route('/api/pets/<pet_id>', methods=['DELETE'])
+@login_required
+def api_delete_pet(pet_id):
+    """Delete a pet by ID."""
+    user_id = session['user_id']
+    pets = load_pets()
+    user_pets = pets.get(user_id, [])
+    original_len = len(user_pets)
+    user_pets = [p for p in user_pets if p['id'] != pet_id]
+    if len(user_pets) == original_len:
+        return jsonify({'error': 'Pet not found'}), 404
+    pets[user_id] = user_pets
+    save_pets(pets)
+    return jsonify({'ok': True})
 
 # ==================== ADMIN OVERSEER ====================
 
