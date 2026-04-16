@@ -25,57 +25,6 @@
     </style>
 </head>
 <body>
-<!-- ── Pet Vet AI Global Navbar ── -->
-<style>
-#pv-nav{background:#0a1628;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;z-index:9000;display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:56px;font-family:'Segoe UI',system-ui,sans-serif;}
-#pv-nav .pv-brand{font-size:1.1rem;font-weight:800;color:#10b981;text-decoration:none;white-space:nowrap;letter-spacing:-0.5px;}
-#pv-nav .pv-brand span{color:#fff;font-weight:400;}
-#pv-nav .pv-links{display:flex;align-items:center;gap:4px;}
-#pv-nav .pv-links a{color:#94a3b8;text-decoration:none;padding:6px 12px;border-radius:7px;font-size:0.83rem;font-weight:500;transition:all 0.15s;white-space:nowrap;}
-#pv-nav .pv-links a:hover{background:rgba(255,255,255,0.08);color:#fff;}
-#pv-nav .pv-links a.pv-active{background:rgba(16,185,129,0.15);color:#10b981;}
-#pv-nav .pv-cta{background:#10b981;color:#fff;padding:6px 14px;border-radius:7px;font-size:0.82rem;font-weight:700;text-decoration:none;white-space:nowrap;transition:background 0.15s;}
-#pv-nav .pv-cta:hover{background:#059669;color:#fff;}
-#pv-nav .pv-hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px;}
-#pv-nav .pv-hamburger span{display:block;width:22px;height:2px;background:#94a3b8;border-radius:2px;}
-@media(max-width:640px){
-  #pv-nav .pv-links{display:none;position:fixed;top:56px;left:0;right:0;background:#0a1628;border-bottom:1px solid rgba(255,255,255,0.08);flex-direction:column;padding:0.5rem 0;gap:0;z-index:8999;}
-  #pv-nav .pv-links.open{display:flex;}
-  #pv-nav .pv-links a{padding:12px 1.5rem;border-radius:0;font-size:0.9rem;}
-  #pv-nav .pv-hamburger{display:flex;}
-  #pv-nav .pv-cta{display:none;}
-}
-</style>
-<nav id="pv-nav">
-  <a href="/" class="pv-brand">🐾 Pet Vet <span>AI</span></a>
-  <div class="pv-links" id="pvLinks">
-    {% if session.get('user_id') %}
-    <a href="/pets" id="pv-link-pets">🐶 My Pets</a>
-    <a href="/diagnose" id="pv-link-diagnose">🔬 Diagnose</a>
-    <a href="/vets" id="pv-link-vets">🏥 Find a Vet</a>
-    <a href="/profile" id="pv-link-profile">👤 Profile</a>
-    <a href="/my-settings" id="pv-link-settings">⚙️ Settings</a>
-    <a href="/logout" style="color:#ef4444;">🚪 Logout</a>
-    {% else %}
-    <a href="/" id="pv-link-home">Home</a>
-    <a href="/login" id="pv-link-login">Login</a>
-    <a href="/register" class="pv-cta">Start Free Trial</a>
-    {% endif %}
-  </div>
-  <button class="pv-hamburger" onclick="document.getElementById('pvLinks').classList.toggle('open')">
-    <span></span><span></span><span></span>
-  </button>
-</nav>
-<script>
-// Highlight active nav link based on current path
-(function(){
-  var path = window.location.pathname;
-  var map = {'/pets':'pv-link-pets','/diagnose':'pv-link-diagnose','/vets':'pv-link-vets','/profile':'pv-link-profile','/my-settings':'pv-link-settings','/login':'pv-link-login','/':'pv-link-home'};
-  var id = map[path];
-  if(id){ var el=document.getElementById(id); if(el) el.classList.add('pv-active'); }
-})();
-</script>
-<!-- ── end navbar ── -->
 
     <div class="container">
         <div class="card">
