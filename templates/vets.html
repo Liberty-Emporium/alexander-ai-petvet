@@ -30,11 +30,11 @@
     <div class="container">
         <header>
             <h1>🏥 Find a Vet</h1>
-            <p class="subtitle">Find nearby veterinary services for your pet</p>
+            <p class="subtitle">Veterinary services in Greensboro, NC</p>
         </header>
         
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search by location or name..." onkeyup="filterVets()">
+            <input type="text" id="searchInput" placeholder="Search by name, location, or specialty..." onkeyup="filterVets()">
         </div>
         
         <div class="filters">
@@ -53,16 +53,118 @@
     
     <script>
         const vets = [
-            { name: "PetMed Emergency Clinic", specialty: "Emergency", location: "24/7 Available", phone: "1-800-PET-MED1", emergency: true, description: "24/7 emergency care for all animals" },
-            { name: "Happy Paws Veterinary", specialty: "General Practice", location: "Downtown", phone: "(555) 123-4567", emergency: false, description: "Routine care, vaccinations, dental" },
-            { name: "Animal Wellness Center", specialty: "Holistic", location: "West Side", phone: "(555) 234-5678", emergency: false, description: "Natural and integrative veterinary care" },
-            { name: "Exotic Pet Specialists", specialty: "Exotic Animals", location: "East District", phone: "(555) 345-6789", emergency: false, description: "Reptiles, birds, small mammals" },
-            { name: "Paws & Claws Dental", specialty: "Dental", location: "Central", phone: "(555) 456-7890", emergency: false, description: "Specialized dental care for pets" },
-            { name: "Pet Cancer Center", specialty: "Oncology", location: "Medical District", phone: "(555) 567-8901", emergency: false, description: "Cancer treatment and oncology" },
-            { name: "BluePearl Pet Hospital", specialty: "Emergency", location: "Multiple Locations", phone: "1-888-BLU-PEARL", emergency: true, description: "Emergency and specialty care" },
-            { name: "VCA Animal Hospitals", specialty: "General Practice", location: "Nationwide", phone: "1-800-VCA-PETS", emergency: false, description: "General practice across the US" },
-            { name: "Banfield Pet Hospital", specialty: "General Practice", location: "In PetSmart Stores", phone: "1-800-BANFIELD", emergency: false, description: "Wellness plans and routine care" },
-            { name: "ASPCA Emergency", specialty: "Emergency", location: "National", phone: "1-888-666-2732", emergency: true, description: "Poison control and emergency" }
+            {
+                name: "Carolina Veterinary Specialists",
+                specialty: "Emergency & Specialist",
+                location: "501 Nicholas Rd, Greensboro, NC 27409",
+                phone: "(336) 632-0605",
+                emergency: true,
+                description: "24/7 emergency care + board-certified specialists in surgery, oncology, radiology, ophthalmology & internal medicine. Open 7 days a week."
+            },
+            {
+                name: "Happy Tails Veterinary Emergency Clinic",
+                specialty: "Emergency",
+                location: "4525 Lawndale Dr, Greensboro, NC 27455",
+                phone: "(336) 288-2688",
+                emergency: true,
+                description: "AAHA-accredited emergency clinic. Weeknights 6pm–8am, weekends & holidays 24 hours. In-house lab, X-ray, ultrasound & laser therapy."
+            },
+            {
+                name: "After Hours Veterinary Emergency Clinic",
+                specialty: "Emergency",
+                location: "5505 W Friendly Ave, Greensboro, NC 27410",
+                phone: "(336) 851-1990",
+                emergency: true,
+                description: "24/7 walk-in emergency care. Partners with Guilford College Animal Hospital for seamless day-to-night continuity of care."
+            },
+            {
+                name: "Gate City Animal Hospital",
+                specialty: "General Practice",
+                location: "202 Pisgah Church Rd, Greensboro, NC 27455",
+                phone: "(336) 286-9500",
+                emergency: false,
+                description: "Full-service general practice. Mon–Fri 7:30am–6pm, Sat 8am–12pm."
+            },
+            {
+                name: "Downtown Greensboro Animal Hospital",
+                specialty: "General Practice",
+                location: "102 W Smith St, Greensboro, NC 27401",
+                phone: "(336) 338-1840",
+                emergency: false,
+                description: "Full-service animal hospital accepting routine and emergency cases. Conveniently located downtown."
+            },
+            {
+                name: "Guilford-Jamestown Veterinary Hospital",
+                specialty: "General Practice",
+                location: "720 Guilford College Rd, Greensboro, NC 27409",
+                phone: "(336) 852-0200",
+                emergency: false,
+                description: "Trusted general practice serving cats and dogs in Greensboro. Mon–Fri 7:30am–5:30pm, Sat 8am–12pm."
+            },
+            {
+                name: "Lawndale Veterinary Hospital",
+                specialty: "General Practice",
+                location: "2641 Lawndale Dr, Greensboro, NC 27408",
+                phone: "(336) 288-3233",
+                emergency: false,
+                description: "Full-service veterinary hospital. Mon–Fri 7am–6pm, Sat 7:30am–12pm."
+            },
+            {
+                name: "Benessere Animal Hospital",
+                specialty: "General Practice",
+                location: "1052 Grecade St, Greensboro, NC 27408",
+                phone: "(336) 897-1505",
+                emergency: false,
+                description: "Offering the very best in veterinary care with a focus on wellness and preventive medicine."
+            },
+            {
+                name: "Adams Farm Animal Hospital",
+                specialty: "General Practice",
+                location: "Greensboro, NC 27407",
+                phone: "(336) 854-5980",
+                emergency: false,
+                description: "Comprehensive veterinary care including wellness exams, vaccinations, surgery, and dental care."
+            },
+            {
+                name: "Bel-Aire Veterinary Hospital",
+                specialty: "General Practice",
+                location: "Greensboro, NC 27409",
+                phone: "(336) 665-1286",
+                emergency: false,
+                description: "34+ years serving Greensboro pets. Full-service care including boarding. Mon–Fri 7:30am–5:30pm, Sat 7:30am–12pm."
+            },
+            {
+                name: "Banfield Pet Hospital",
+                specialty: "General Practice",
+                location: "2641 Lawndale Dr, Greensboro, NC 27408",
+                phone: "(336) 545-8333",
+                emergency: false,
+                description: "Wellness plans, routine care, vaccinations and preventive medicine. Located inside PetSmart."
+            },
+            {
+                name: "Northeast Veterinary Hospital",
+                specialty: "General Practice",
+                location: "4601 Hicone Rd, Greensboro, NC 27405",
+                phone: "(336) 375-0277",
+                emergency: false,
+                description: "Full-service veterinary hospital serving northeast Greensboro and surrounding areas."
+            },
+            {
+                name: "Piedmont Community Spay & Neuter",
+                specialty: "Spay & Neuter",
+                location: "Greensboro, NC 27405",
+                phone: "(336) 333-5336",
+                emergency: false,
+                description: "Low-cost spay and neuter services for dogs and cats. Helping control pet overpopulation in the Triad."
+            },
+            {
+                name: "ASPCA Animal Poison Control",
+                specialty: "Poison Control",
+                location: "National Hotline",
+                phone: "(888) 426-4435",
+                emergency: true,
+                description: "24/7 poison control hotline for pet emergencies. Call immediately if your pet ingests something toxic. Consultation fee may apply."
+            }
         ];
         
         let currentFilter = 'all';
