@@ -1157,6 +1157,104 @@ def api_token_ui_revoke():
         conn.close()
     return jsonify({'success':True})
 
+
+# ── API Key Infrastructure ────────────────────────────────────────────────────
+import secrets as _api_secrets, hashlib as _api_hash, functools as _api_functools
+
+_API_KEYS_FILE = os.path.join(os.environ.get('RAILWAY_VOLUME_MOUNT_PATH', '/data'), 'api_keys.json')
+
+def _load_api_keys():
+    if os.path.exists(_API_KEYS_FILE):
+        with open(_API_KEYS_FILE) as f:
+            import json as _j; return _j.load(f)
+    return {}
+
+def _save_api_keys(keys):
+    with open(_API_KEYS_FILE, 'w') as f:
+        import json as _j; _j.dump(keys, f, indent=2)
+
+def _require_api_key(f):
+    """Decorator: require valid API key via X-API-Key header, Authorization: Bearer, or ?api_key= param."""
+    @_api_functools.wraps(f)
+    def decorated(*args, **kwargs):
+        key = (request.headers.get('X-API-Key') or
+               request.args.get('api_key') or
+               (request.headers.get('Authorization','')[7:].strip() if request.headers.get('Authorization','').startswith('Bearer ') else None))
+        if not key:
+            return jsonify({'error': 'API key required. Pass as X-API-Key header or Authorization: Bearer <key>'}), 401
+        keys = _load_api_keys()
+        if key not in keys:
+            return jsonify({'error': 'Invalid API key'}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+@app.route('/admin/api-generator')
+@login_required
+def _admin_api_generator_page():
+    if session.get('username') != os.environ.get('ADMIN_USER','admin') and session.get('role') != 'overseer':
+        return jsonify({'error': 'Admin only'}), 403
+    keys = _load_api_keys()
+    new_key = request.args.get('new_key', '')
+    base_url = request.host_url.rstrip('/')
+    return render_template('admin_api_generator.html',
+        api_keys=keys, new_key=new_key, base_url=base_url,
+        endpoints=[('GET', '/api/users/count', 'Total registered users'), ('GET', '/api/diagnoses/count', 'Total diagnoses run'), ('GET', '/api/stats', 'App stats'), ('GET', '/health', 'Health check (no auth)')])
+
+@app.route('/admin/api-generator/generate', methods=['POST'])
+@login_required
+def _admin_api_generate():
+    if session.get('username') != os.environ.get('ADMIN_USER','admin') and session.get('role') != 'overseer':
+        return jsonify({'error': 'Admin only'}), 403
+    from datetime import datetime as _dt
+    label = request.form.get('label','Testing Key').strip() or 'Testing Key'
+    raw_key = 'pv_' + _api_secrets.token_urlsafe(32)
+    keys = _load_api_keys()
+    keys[raw_key] = {'name': label, 'created_by': 'admin', 'created_at': _dt.utcnow().isoformat(), 'active': True}
+    _save_api_keys(keys)
+    flash(f'API key generated!', 'success')
+    return redirect('/admin/api-generator?new_key=' + raw_key)
+
+@app.route('/admin/api-generator/revoke/<path:key>', methods=['POST'])
+@login_required
+def _admin_api_revoke(key):
+    if session.get('username') != os.environ.get('ADMIN_USER','admin') and session.get('role') != 'overseer':
+        return jsonify({'error': 'Admin only'}), 403
+    keys = _load_api_keys()
+    if key in keys:
+        del keys[key]
+        _save_api_keys(keys)
+        flash('Key revoked.', 'success')
+    return redirect('/admin/api-generator')
+
+# ── Public API ───────────────────────────────────────────────────────────────
+@app.route('/api/users/count', methods=['GET'])
+@_require_api_key
+def _api_pv_user_count():
+    try:
+        users = load_users() if callable(globals().get('load_users')) else {}
+        return jsonify({'total_users': len(users)})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/diagnoses/count', methods=['GET'])
+@_require_api_key
+def _api_pv_diagnoses():
+    try:
+        db = get_db()
+        count = db.execute('SELECT COUNT(*) FROM metrics WHERE metric="diagnosis"').fetchone()
+        return jsonify({'total_diagnoses': count[0] if count else 0})
+    except Exception as e:
+        return jsonify({'total_diagnoses': 0})
+
+@app.route('/api/stats', methods=['GET'])
+@_require_api_key
+def _api_pv_stats():
+    try:
+        users = load_users() if callable(globals().get('load_users')) else {}
+        return jsonify({'total_users': len(users), 'status': 'ok'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
 @app.route('/vets')
