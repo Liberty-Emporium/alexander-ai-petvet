@@ -312,26 +312,74 @@
     }
 
     function locateMe() {
-      if (!navigator.geolocation) {
-        setStatus('Geolocation not supported by your browser. Please type a city above.');
-        return;
-      }
+      // Step 1: Try GPS (best accuracy)
+      // Step 2: Fall back to IP geolocation (no permission needed, works silently)
+      // Step 3: If both fail, show city search
+
       setStatus('<span class="spinner"></span> Getting your location…');
-      navigator.geolocation.getCurrentPosition(
-        function(pos) {
-          currentLat = pos.coords.latitude;
-          currentLon = pos.coords.longitude;
-          reverseGeocode(currentLat, currentLon, function(name) {
-            currentLocationName = name || (currentLat.toFixed(3) + ', ' + currentLon.toFixed(3));
-            document.getElementById('location-display').innerHTML = '📍 ' + currentLocationName;
-            fetchVetsByCoords(currentLat, currentLon);
+
+      function useCoords(lat, lon, sourceName) {
+        currentLat = lat;
+        currentLon = lon;
+        reverseGeocode(lat, lon, function(name) {
+          currentLocationName = name || sourceName || (lat.toFixed(3) + ', ' + lon.toFixed(3));
+          document.getElementById('location-display').innerHTML = '📍 ' + currentLocationName;
+          fetchVetsByCoords(lat, lon);
+        });
+      }
+
+      function tryIPLocation() {
+        // ip-api.com — free, no key, works globally, no permission
+        fetch('https://ip-api.com/json/?fields=status,city,country,lat,lon')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d.status === 'success' && d.lat && d.lon) {
+              useCoords(d.lat, d.lon, d.city + ', ' + d.country);
+            } else {
+              tryIPFallback2();
+            }
+          })
+          .catch(tryIPFallback2);
+      }
+
+      function tryIPFallback2() {
+        // Second IP geolocation fallback: ipapi.co
+        fetch('https://ipapi.co/json/')
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d.latitude && d.longitude) {
+              useCoords(d.latitude, d.longitude, d.city + ', ' + d.country_name);
+            } else {
+              setStatus('⚠️ Could not detect your location automatically. Type your city above to find local vets.');
+            }
+          })
+          .catch(function() {
+            setStatus('⚠️ Could not detect your location automatically. Type your city above to find local vets.');
           });
-        },
-        function(err) {
-          setStatus('Location access denied. Please type a city above.');
-        },
-        {timeout: 10000}
-      );
+      }
+
+      if (navigator.geolocation) {
+        var gpsDone = false;
+        var gpsTimer = setTimeout(function() {
+          // GPS taking too long — try IP first, GPS will update if it arrives
+          if (!gpsDone) tryIPLocation();
+        }, 3000);
+
+        navigator.geolocation.getCurrentPosition(
+          function(pos) {
+            clearTimeout(gpsTimer);
+            gpsDone = true;
+            useCoords(pos.coords.latitude, pos.coords.longitude, null);
+          },
+          function() {
+            clearTimeout(gpsTimer);
+            if (!gpsDone) tryIPLocation();
+          },
+          { timeout: 10000, maximumAge: 60000 }
+        );
+      } else {
+        tryIPLocation();
+      }
     }
 
     function searchByCity() {
