@@ -7,211 +7,362 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; color: #fff; }
-        .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
-        header { text-align: center; padding: 2rem 0; }
-        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
-        .subtitle { color: #94a3b8; }
-        .search-box { margin: 2rem 0; }
-        .search-box input { width: 100%; padding: 1rem; border-radius: 12px; border: 2px solid #3b82f6; background: #1e293b; color: #fff; font-size: 1rem; }
-        .filters { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
-        .filter-btn { padding: 0.5rem 1rem; border-radius: 20px; border: 1px solid #3b82f6; background: transparent; color: #3b82f6; cursor: pointer; transition: all 0.3s; }
+        .container { max-width: 960px; margin: 0 auto; padding: 2rem; }
+        header { text-align: center; padding: 2rem 0 1rem; }
+        h1 { font-size: 2.2rem; margin-bottom: 0.4rem; }
+        .subtitle { color: #94a3b8; margin-bottom: 0.5rem; }
+        .location-bar { display: flex; align-items: center; justify-content: center; gap: 0.75rem; margin: 1rem 0; flex-wrap: wrap; }
+        #location-display { color: #6366f1; font-weight: 600; font-size: 0.95rem; }
+        .btn-locate { background: #6366f1; color: #fff; border: none; border-radius: 8px; padding: 0.5rem 1.1rem; cursor: pointer; font-size: 0.85rem; font-weight: 700; font-family: inherit; transition: background 0.2s; }
+        .btn-locate:hover { background: #4f46e5; }
+        .manual-search { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 0.5rem 0; }
+        .manual-search input { padding: 0.55rem 1rem; border-radius: 8px; border: 2px solid #334155; background: #1e293b; color: #fff; font-size: 0.9rem; min-width: 250px; }
+        .manual-search input:focus { outline: none; border-color: #6366f1; }
+        .manual-search button { padding: 0.55rem 1rem; border-radius: 8px; background: #6366f1; color: #fff; border: none; cursor: pointer; font-weight: 700; font-size: 0.85rem; font-family: inherit; }
+        .search-box { margin: 1rem 0 0.5rem; }
+        .search-box input { width: 100%; padding: 0.9rem 1rem; border-radius: 12px; border: 2px solid #3b82f6; background: #1e293b; color: #fff; font-size: 1rem; }
+        .filters { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 0.75rem 0; }
+        .filter-btn { padding: 0.4rem 0.9rem; border-radius: 20px; border: 1px solid #3b82f6; background: transparent; color: #3b82f6; cursor: pointer; transition: all 0.2s; font-family: inherit; font-size: 0.85rem; }
         .filter-btn.active { background: #3b82f6; color: #fff; }
-        .vet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
-        .vet-card { background: #1e293b; border-radius: 16px; padding: 1.5rem; border: 1px solid #334155; }
-        .vet-card h3 { color: #3b82f6; margin-bottom: 0.5rem; }
-        .vet-card .specialty { display: inline-block; background: #7c3aed; padding: 0.25rem 0.75rem; border-radius: 12px; font-size: 0.8rem; margin: 0.5rem 0; }
-        .vet-card .location { color: #94a3b8; margin: 0.5rem 0; }
-        .vet-card .phone { color: #22c55e; }
-        .vet-card .emergency { color: #ef4444; font-weight: bold; }
-        .back-link { display: inline-block; margin-top: 2rem; color: #3b82f6; text-decoration: none; }
+        .vet-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
+        .vet-card { background: #1e293b; border-radius: 16px; padding: 1.4rem; border: 1px solid #334155; transition: transform 0.2s; }
+        .vet-card:hover { transform: translateY(-3px); border-color: #6366f1; }
+        .vet-card h3 { color: #60a5fa; margin-bottom: 0.4rem; font-size: 1rem; }
+        .vet-card .specialty { display: inline-block; background: #7c3aed; padding: 0.2rem 0.65rem; border-radius: 12px; font-size: 0.75rem; margin: 0.35rem 0; }
+        .vet-card .location { color: #94a3b8; margin: 0.4rem 0; font-size: 0.85rem; }
+        .vet-card .desc { color: #cbd5e1; font-size: 0.84rem; margin: 0.3rem 0; line-height: 1.5; }
+        .vet-card .phone { color: #22c55e; font-size: 0.9rem; font-weight: 600; }
+        .vet-card .phone a { color: #22c55e; text-decoration: none; }
+        .vet-card .emergency-tag { color: #ef4444; font-weight: 700; font-size: 0.82rem; margin-top: 0.5rem; }
+        .vet-card .distance { color: #64748b; font-size: 0.78rem; margin-top: 0.25rem; }
+        .vet-card .map-link { display: inline-block; margin-top: 0.6rem; color: #6366f1; font-size: 0.8rem; text-decoration: none; }
+        .vet-card .map-link:hover { text-decoration: underline; }
+        .status-msg { text-align: center; padding: 2rem; color: #64748b; font-size: 0.95rem; }
+        .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid #334155; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .back-link { display: inline-block; margin-top: 1.5rem; color: #3b82f6; text-decoration: none; font-size: 0.9rem; }
+        .back-link:hover { text-decoration: underline; }
+        .source-tag { text-align: center; color: #334155; font-size: 0.72rem; margin-top: 1rem; }
+
+        /* Language switcher */
+        #lang-switcher { position: fixed; bottom: 80px; right: 1.5rem; z-index: 9990; }
+        #lang-btn { background: #1e293b; border: 1px solid #334155; color: #e2e8f0; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 10px rgba(0,0,0,0.4); font-family: inherit; }
+        #lang-menu { display: none; position: absolute; bottom: 110%; right: 0; background: #1e293b; border: 1px solid #334155; border-radius: 10px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.5); min-width: 150px; }
+        .lang-item { display: block; width: 100%; text-align: left; padding: 9px 15px; background: none; border: none; color: #e2e8f0; cursor: pointer; font-size: 0.83rem; font-family: inherit; }
+        .lang-item:hover { background: #334155; }
+        .lang-item.active { color: #6366f1; font-weight: 700; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🏥 Find a Vet</h1>
-            <p class="subtitle">Veterinary services in Greensboro, NC</p>
+            <h1>🏥 <span data-i18n="Find a Vet">Find a Vet</span></h1>
+            <p class="subtitle" data-i18n="vet-subtitle">Real veterinary clinics near you — anywhere in the world</p>
         </header>
-        
+
+        <div class="location-bar">
+            <span id="location-display">📍 <span data-i18n="detecting">Detecting your location…</span></span>
+            <button class="btn-locate" onclick="locateMe()" data-i18n="Use My Location">📡 Use My Location</button>
+        </div>
+
+        <div class="manual-search">
+            <input type="text" id="cityInput" placeholder="Or type a city, e.g. London, Tokyo, Paris…" />
+            <button onclick="searchByCity()" data-i18n="Search">🔍 Search</button>
+        </div>
+
         <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search by name, location, or specialty..." onkeyup="filterVets()">
+            <input type="text" id="searchInput" placeholder="Filter results by name…" oninput="filterVets()">
         </div>
-        
+
         <div class="filters">
-            <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
-            <button class="filter-btn" onclick="setFilter('emergency', this)">🚨 Emergency</button>
-            <button class="filter-btn" onclick="setFilter('general', this)">General Practice</button>
-            <button class="filter-btn" onclick="setFilter('specialist', this)">🏥 Specialists</button>
+            <button class="filter-btn active" onclick="setFilter('all',this)" data-i18n="All">All</button>
+            <button class="filter-btn" onclick="setFilter('emergency',this)" data-i18n="Emergency">🚨 Emergency</button>
+            <button class="filter-btn" onclick="setFilter('general',this)" data-i18n="General Practice">General Practice</button>
+            <button class="filter-btn" onclick="setFilter('specialist',this)" data-i18n="Specialists">🏥 Specialists</button>
         </div>
-        
-        <div class="vet-grid" id="vetGrid">
-            <!-- Vets will be populated here -->
-        </div>
-        
-        <a href="/pets" class="back-link">← Back to My Pets</a>
+
+        <div id="vet-status" class="status-msg"></div>
+        <div class="vet-grid" id="vetGrid"></div>
+        <div class="source-tag" id="source-tag"></div>
+
+        <a href="/pets" class="back-link">← <span data-i18n="Back to My Pets">Back to My Pets</span></a>
     </div>
-    
+
+    <!-- Language Switcher -->
+    <div id="lang-switcher">
+        <button id="lang-btn" onclick="toggleLangMenu()">🌐 <span id="lang-label">EN</span> ▾</button>
+        <div id="lang-menu"></div>
+    </div>
+
     <script>
-        const vets = [
-            {
-                name: "Carolina Veterinary Specialists",
-                specialty: "Emergency & Specialist",
-                location: "501 Nicholas Rd, Greensboro, NC 27409",
-                phone: "(336) 632-0605",
-                emergency: true,
-                description: "24/7 emergency care + board-certified specialists in surgery, oncology, radiology, ophthalmology & internal medicine. Open 7 days a week."
-            },
-            {
-                name: "Happy Tails Veterinary Emergency Clinic",
-                specialty: "Emergency",
-                location: "4525 Lawndale Dr, Greensboro, NC 27455",
-                phone: "(336) 288-2688",
-                emergency: true,
-                description: "AAHA-accredited emergency clinic. Weeknights 6pm–8am, weekends & holidays 24 hours. In-house lab, X-ray, ultrasound & laser therapy."
-            },
-            {
-                name: "After Hours Veterinary Emergency Clinic",
-                specialty: "Emergency",
-                location: "5505 W Friendly Ave, Greensboro, NC 27410",
-                phone: "(336) 851-1990",
-                emergency: true,
-                description: "24/7 walk-in emergency care. Partners with Guilford College Animal Hospital for seamless day-to-night continuity of care."
-            },
-            {
-                name: "Gate City Animal Hospital",
-                specialty: "General Practice",
-                location: "202 Pisgah Church Rd, Greensboro, NC 27455",
-                phone: "(336) 286-9500",
-                emergency: false,
-                description: "Full-service general practice. Mon–Fri 7:30am–6pm, Sat 8am–12pm."
-            },
-            {
-                name: "Downtown Greensboro Animal Hospital",
-                specialty: "General Practice",
-                location: "102 W Smith St, Greensboro, NC 27401",
-                phone: "(336) 338-1840",
-                emergency: false,
-                description: "Full-service animal hospital accepting routine and emergency cases. Conveniently located downtown."
-            },
-            {
-                name: "Guilford-Jamestown Veterinary Hospital",
-                specialty: "General Practice",
-                location: "720 Guilford College Rd, Greensboro, NC 27409",
-                phone: "(336) 852-0200",
-                emergency: false,
-                description: "Trusted general practice serving cats and dogs in Greensboro. Mon–Fri 7:30am–5:30pm, Sat 8am–12pm."
-            },
-            {
-                name: "Lawndale Veterinary Hospital",
-                specialty: "General Practice",
-                location: "2641 Lawndale Dr, Greensboro, NC 27408",
-                phone: "(336) 288-3233",
-                emergency: false,
-                description: "Full-service veterinary hospital. Mon–Fri 7am–6pm, Sat 7:30am–12pm."
-            },
-            {
-                name: "Benessere Animal Hospital",
-                specialty: "General Practice",
-                location: "1052 Grecade St, Greensboro, NC 27408",
-                phone: "(336) 897-1505",
-                emergency: false,
-                description: "Offering the very best in veterinary care with a focus on wellness and preventive medicine."
-            },
-            {
-                name: "Adams Farm Animal Hospital",
-                specialty: "General Practice",
-                location: "Greensboro, NC 27407",
-                phone: "(336) 854-5980",
-                emergency: false,
-                description: "Comprehensive veterinary care including wellness exams, vaccinations, surgery, and dental care."
-            },
-            {
-                name: "Bel-Aire Veterinary Hospital",
-                specialty: "General Practice",
-                location: "Greensboro, NC 27409",
-                phone: "(336) 665-1286",
-                emergency: false,
-                description: "34+ years serving Greensboro pets. Full-service care including boarding. Mon–Fri 7:30am–5:30pm, Sat 7:30am–12pm."
-            },
-            {
-                name: "Banfield Pet Hospital",
-                specialty: "General Practice",
-                location: "2641 Lawndale Dr, Greensboro, NC 27408",
-                phone: "(336) 545-8333",
-                emergency: false,
-                description: "Wellness plans, routine care, vaccinations and preventive medicine. Located inside PetSmart."
-            },
-            {
-                name: "Northeast Veterinary Hospital",
-                specialty: "General Practice",
-                location: "4601 Hicone Rd, Greensboro, NC 27405",
-                phone: "(336) 375-0277",
-                emergency: false,
-                description: "Full-service veterinary hospital serving northeast Greensboro and surrounding areas."
-            },
-            {
-                name: "Piedmont Community Spay & Neuter",
-                specialty: "Spay & Neuter",
-                location: "Greensboro, NC 27405",
-                phone: "(336) 333-5336",
-                emergency: false,
-                description: "Low-cost spay and neuter services for dogs and cats. Helping control pet overpopulation in the Triad."
-            },
-            {
-                name: "ASPCA Animal Poison Control",
-                specialty: "Poison Control",
-                location: "National Hotline",
-                phone: "(888) 426-4435",
-                emergency: true,
-                description: "24/7 poison control hotline for pet emergencies. Call immediately if your pet ingests something toxic. Consultation fee may apply."
-            }
-        ];
-        
-        let currentFilter = 'all';
-        
-        function renderVets(filter = 'all', search = '') {
-            const grid = document.getElementById('vetGrid');
-            let filtered = vets;
-            
-            if (filter !== 'all') {
-                if (filter === 'emergency') {
-                    filtered = filtered.filter(v => v.emergency);
-                } else if (filter === 'specialist') {
-                    filtered = filtered.filter(v => ['specialist', 'Dental', 'Oncology', 'Exotic'].includes(v.specialty));
-                }
-            }
-            
-            if (search) {
-                filtered = filtered.filter(v => 
-                    v.name.toLowerCase().includes(search.toLowerCase()) ||
-                    v.location.toLowerCase().includes(search.toLowerCase())
-                );
-            }
-            
-            grid.innerHTML = filtered.map(vet => `
-                <div class="vet-card">
-                    <h3>${vet.name}</h3>
-                    <span class="specialty">${vet.specialty}</span>
-                    <p class="location">📍 ${vet.location}</p>
-                    <p>${vet.description}</p>
-                    <p class="phone">📞 ${vet.phone}</p>
-                    ${vet.emergency ? '<p class="emergency">🚨 24/7 Emergency</p>' : ''}
-                </div>
-            `).join('');
-        }
-        
-        function setFilter(filter, btn) {
-            currentFilter = filter;
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderVets(filter, document.getElementById('searchInput').value);
-        }
-        
-        function filterVets() {
-            renderVets(currentFilter, document.getElementById('searchInput').value);
-        }
-        
-        renderVets();
+    // ─────────────────────────────────────────────────────
+    // i18n
+    // ─────────────────────────────────────────────────────
+    var LANGS = {en:'English 🇺🇸',es:'Español 🇪🇸',fr:'Français 🇫🇷',pt:'Português 🇧🇷',de:'Deutsch 🇩🇪',zh:'中文 🇨🇳',ja:'日本語 🇯🇵',ar:'العربية 🇸🇦'};
+    var T = {
+      'Find a Vet':          {es:'Buscar Veterinario',fr:'Trouver un vétérinaire',pt:'Encontrar Veterinário',de:'Tierarzt finden',zh:'查找兽医',ja:'獣医を探す',ar:'ابحث عن طبيب بيطري'},
+      'vet-subtitle':        {es:'Clínicas veterinarias reales cerca de ti — en cualquier parte del mundo',fr:'Cliniques vétérinaires réelles près de vous — partout dans le monde',pt:'Clínicas veterinárias reais perto de você — em qualquer lugar do mundo',de:'Echte Tierarztpraxen in Ihrer Nähe — weltweit',zh:'全球真实兽医诊所',ja:'世界中のあなたの近くの本物の獣医クリニック',ar:'عيادات بيطرية حقيقية بالقرب منك في أي مكان بالعالم'},
+      'detecting':           {es:'Detectando tu ubicación…',fr:'Détection de votre position…',pt:'Detectando sua localização…',de:'Standort wird erkannt…',zh:'正在检测您的位置…',ja:'位置を検出中…',ar:'جاري تحديد موقعك…'},
+      'Use My Location':     {es:'Usar Mi Ubicación',fr:'Utiliser ma position',pt:'Usar Minha Localização',de:'Meinen Standort nutzen',zh:'使用我的位置',ja:'現在地を使う',ar:'استخدام موقعي'},
+      'Search':              {es:'Buscar',fr:'Rechercher',pt:'Pesquisar',de:'Suchen',zh:'搜索',ja:'検索',ar:'بحث'},
+      'All':                 {es:'Todos',fr:'Tous',pt:'Todos',de:'Alle',zh:'全部',ja:'すべて',ar:'الكل'},
+      'Emergency':           {es:'Emergencia',fr:'Urgence',pt:'Emergência',de:'Notfall',zh:'急诊',ja:'緊急',ar:'طوارئ'},
+      'General Practice':    {es:'Clínica General',fr:'Médecine générale',pt:'Clínica Geral',de:'Allgemeinpraxis',zh:'普通诊所',ja:'一般診療',ar:'ممارسة عامة'},
+      'Specialists':         {es:'Especialistas',fr:'Spécialistes',pt:'Especialistas',de:'Spezialisten',zh:'专科',ja:'専門医',ar:'متخصصون'},
+      'Back to My Pets':     {es:'Volver a Mis Mascotas',fr:'Retour à mes animaux',pt:'Voltar aos Meus Pets',de:'Zurück zu meinen Tieren',zh:'返回我的宠物',ja:'ペットに戻る',ar:'العودة إلى حيواناتي'},
+      'Get Directions':      {es:'Cómo llegar',fr:'Itinéraire',pt:'Como chegar',de:'Route',zh:'获取路线',ja:'経路',ar:'الاتجاهات'},
+      '24/7 Emergency':      {es:'Emergencia 24/7',fr:'Urgence 24h/24',pt:'Emergência 24/7',de:'24/7 Notfall',zh:'24/7急诊',ja:'24/7緊急対応',ar:'طوارئ 24/7'},
+      'No results found':    {es:'Sin resultados',fr:'Aucun résultat',pt:'Sem resultados',de:'Keine Ergebnisse',zh:'未找到结果',ja:'結果なし',ar:'لا توجد نتائج'},
+      'loading':             {es:'Buscando veterinarios cercanos…',fr:'Recherche de vétérinaires à proximité…',pt:'Buscando veterinários próximos…',de:'Suche nach Tierärzten in der Nähe…',zh:'正在搜索附近兽医…',ja:'近くの獣医を検索中…',ar:'البحث عن أطباء بيطريين قريبين…'},
+    };
+
+    function getLang() {
+      var s = localStorage.getItem('pv_lang');
+      if (s) return s;
+      var nav = (navigator.language||'en').slice(0,2).toLowerCase();
+      return ['en','es','fr','pt','de','zh','ja','ar'].includes(nav) ? nav : 'en';
+    }
+    function tr(key) {
+      var lang = getLang();
+      if (lang === 'en') return key;
+      return (T[key] && T[key][lang]) || key;
+    }
+    function applyTranslations() {
+      document.querySelectorAll('[data-i18n]').forEach(function(el) {
+        var key = el.getAttribute('data-i18n');
+        el.textContent = tr(key);
+      });
+      var lang = getLang();
+      document.documentElement.lang = lang;
+      document.documentElement.dir = (lang === 'ar') ? 'rtl' : 'ltr';
+      document.getElementById('lang-label').textContent = lang.toUpperCase();
+    }
+    function buildLangMenu() {
+      var menu = document.getElementById('lang-menu');
+      var cur = getLang();
+      Object.entries(LANGS).forEach(function(e) {
+        var btn = document.createElement('button');
+        btn.className = 'lang-item' + (e[0]===cur?' active':'');
+        btn.textContent = e[1];
+        btn.onclick = function() { localStorage.setItem('pv_lang', e[0]); location.reload(); };
+        menu.appendChild(btn);
+      });
+    }
+    function toggleLangMenu() {
+      var m = document.getElementById('lang-menu');
+      m.style.display = m.style.display === 'block' ? 'none' : 'block';
+    }
+    document.addEventListener('click', function(e) {
+      if (!document.getElementById('lang-switcher').contains(e.target))
+        document.getElementById('lang-menu').style.display = 'none';
+    });
+
+    // ─────────────────────────────────────────────────────
+    // Vet data & display
+    // ─────────────────────────────────────────────────────
+    var allVets = [];
+    var currentFilter = 'all';
+    var currentLat = null, currentLon = null;
+    var currentLocationName = '';
+
+    function setStatus(msg) {
+      document.getElementById('vet-status').innerHTML = msg;
+    }
+
+    function renderVets() {
+      var grid = document.getElementById('vetGrid');
+      var search = document.getElementById('searchInput').value.toLowerCase();
+      var list = allVets.filter(function(v) {
+        if (currentFilter === 'emergency' && !v.emergency) return false;
+        if (currentFilter === 'general' && v.specialty !== 'General Practice') return false;
+        if (currentFilter === 'specialist' && !['Specialist','Oncology','Dental','Exotic Animals','Ophthalmology','Internal Medicine','Surgery','Spay & Neuter','Rehabilitation'].includes(v.specialty)) return false;
+        if (search && !v.name.toLowerCase().includes(search) && !v.location.toLowerCase().includes(search)) return false;
+        return true;
+      });
+      if (!list.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#64748b;padding:2rem;">' + tr('No results found') + '</div>';
+        return;
+      }
+      grid.innerHTML = list.map(function(v) {
+        var phone = v.phone ? '<p class="phone">📞 <a href="tel:' + v.phone + '">' + v.phone + '</a></p>' : '';
+        var emergency = v.emergency ? '<p class="emergency-tag">🚨 ' + tr('24/7 Emergency') + '</p>' : '';
+        var dist = v.distance_km != null ? '<p class="distance">📏 ' + v.distance_km.toFixed(1) + ' km away</p>' : '';
+        var mapUrl = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(v.name + ' ' + v.location);
+        var mapLink = '<a class="map-link" href="' + mapUrl + '" target="_blank">🗺️ ' + tr('Get Directions') + '</a>';
+        return '<div class="vet-card">' +
+          '<h3>' + v.name + '</h3>' +
+          '<span class="specialty">' + v.specialty + '</span>' +
+          '<p class="location">📍 ' + v.location + '</p>' +
+          '<p class="desc">' + (v.description || '') + '</p>' +
+          phone + emergency + dist + mapLink +
+          '</div>';
+      }).join('');
+    }
+
+    function setFilter(f, btn) {
+      currentFilter = f;
+      document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      renderVets();
+    }
+
+    function filterVets() { renderVets(); }
+
+    // ─────────────────────────────────────────────────────
+    // OpenStreetMap / Overpass — free, no API key
+    // ─────────────────────────────────────────────────────
+    function haversine(lat1, lon1, lat2, lon2) {
+      var R = 6371;
+      var dLat = (lat2-lat1) * Math.PI/180;
+      var dLon = (lon2-lon1) * Math.PI/180;
+      var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
+
+    function overpassTypeToSpecialty(tags) {
+      var name = (tags.name || '').toLowerCase();
+      var healthcare = (tags.healthcare || tags.amenity || '').toLowerCase();
+      if (name.includes('emergency') || name.includes('urgenc') || name.includes('urgenz') || name.includes('urgente')) return {s:'Emergency', e:true};
+      if (name.includes('specialist') || name.includes('spécialiste') || name.includes('spezial')) return {s:'Specialist', e:false};
+      if (name.includes('dental') || name.includes('dentaire')) return {s:'Dental', e:false};
+      if (name.includes('oncol')) return {s:'Oncology', e:false};
+      if (name.includes('exotic') || name.includes('exotique')) return {s:'Exotic Animals', e:false};
+      if (name.includes('spay') || name.includes('neuter') || name.includes('steriliz') || name.includes('castrat')) return {s:'Spay & Neuter', e:false};
+      return {s:'General Practice', e:false};
+    }
+
+    function fetchVetsByCoords(lat, lon, radiusKm) {
+      radiusKm = radiusKm || 15;
+      var radiusM = radiusKm * 1000;
+      setStatus('<span class="spinner"></span>' + tr('loading'));
+
+      // Overpass query for veterinary POIs
+      var query = '[out:json][timeout:25];(node["amenity"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + ');way["amenity"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + ');node["healthcare"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + '););out body;';
+
+      fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var elements = data.elements || [];
+          if (elements.length === 0 && radiusKm < 60) {
+            // expand search radius
+            return fetchVetsByCoords(lat, lon, radiusKm * 3);
+          }
+          var vets = elements
+            .filter(function(e) { return e.tags && e.tags.name; })
+            .map(function(e) {
+              var tags = e.tags;
+              var elat = e.lat || (e.center && e.center.lat);
+              var elon = e.lon || (e.center && e.center.lon);
+              var st = overpassTypeToSpecialty(tags);
+              var addr = [tags['addr:street'], tags['addr:housenumber'], tags['addr:city']].filter(Boolean).join(' ');
+              if (!addr) addr = currentLocationName;
+              var dist = (elat && elon) ? haversine(lat, lon, elat, elon) : null;
+              var phone = tags.phone || tags['contact:phone'] || null;
+              var opening = tags.opening_hours || null;
+              return {
+                name: tags.name,
+                specialty: st.s,
+                emergency: st.e,
+                location: addr,
+                description: opening ? '🕐 ' + opening : '',
+                phone: phone,
+                distance_km: dist,
+                lat: elat, lon: elon
+              };
+            })
+            .sort(function(a,b) { return (a.distance_km||99) - (b.distance_km||99); });
+
+          allVets = vets;
+          setStatus('');
+          document.getElementById('source-tag').textContent = '📍 ' + vets.length + ' clinics found via OpenStreetMap · ' + currentLocationName;
+          renderVets();
+        })
+        .catch(function(err) {
+          console.error(err);
+          loadFallback();
+        });
+    }
+
+    function loadFallback() {
+      // Fallback: well-known global vet chains
+      allVets = [
+        {name:'Banfield Pet Hospital',specialty:'General Practice',emergency:false,location:'United States (Nationwide)',description:'Wellness plans & routine care inside PetSmart locations.',phone:'1-888-266-8738',distance_km:null},
+        {name:'VCA Animal Hospitals',specialty:'General Practice',emergency:false,location:'United States (Nationwide)',description:'General practice with 1,000+ locations across North America.',phone:'1-800-822-7387',distance_km:null},
+        {name:'BluePearl Pet Hospital',specialty:'Emergency & Specialist',emergency:true,location:'United States (Nationwide)',description:'Emergency and specialty care. Multiple US locations.',phone:'1-866-258-7325',distance_km:null},
+        {name:'Medivet',specialty:'General Practice',emergency:false,location:'United Kingdom',description:'Leading UK vet group with hundreds of practices across England, Scotland & Wales.',phone:null,distance_km:null},
+        {name:'IVC Evidensia',specialty:'General Practice',emergency:false,location:'Europe (UK, Germany, France, Netherlands…)',description:'Europe\'s largest veterinary group operating across 20+ countries.',phone:null,distance_km:null},
+        {name:'ASPCA Animal Poison Control',specialty:'Poison Control',emergency:true,location:'National Hotline (US)',description:'24/7 poison control for pets. Call immediately if your pet ingests something toxic.',phone:'(888) 426-4435',distance_km:null},
+      ];
+      setStatus('⚠️ Could not reach location services. Showing global resources. Type a city above to search.');
+      document.getElementById('source-tag').textContent = 'Showing global fallback resources';
+      renderVets();
+    }
+
+    function reverseGeocode(lat, lon, cb) {
+      fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon, {
+        headers: {'Accept-Language': getLang(), 'User-Agent': 'PetVetAI/1.0'}
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+          var city = d.address.city || d.address.town || d.address.village || d.address.county || '';
+          var country = d.address.country || '';
+          cb(city + (country ? ', ' + country : ''));
+        })
+        .catch(function() { cb(''); });
+    }
+
+    function locateMe() {
+      if (!navigator.geolocation) {
+        setStatus('Geolocation not supported by your browser. Please type a city above.');
+        return;
+      }
+      setStatus('<span class="spinner"></span> Getting your location…');
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          currentLat = pos.coords.latitude;
+          currentLon = pos.coords.longitude;
+          reverseGeocode(currentLat, currentLon, function(name) {
+            currentLocationName = name || (currentLat.toFixed(3) + ', ' + currentLon.toFixed(3));
+            document.getElementById('location-display').innerHTML = '📍 ' + currentLocationName;
+            fetchVetsByCoords(currentLat, currentLon);
+          });
+        },
+        function(err) {
+          setStatus('Location access denied. Please type a city above.');
+        },
+        {timeout: 10000}
+      );
+    }
+
+    function searchByCity() {
+      var city = document.getElementById('cityInput').value.trim();
+      if (!city) return;
+      setStatus('<span class="spinner"></span> Finding ' + city + '…');
+      fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(city), {
+        headers: {'User-Agent': 'PetVetAI/1.0'}
+      })
+        .then(function(r) { return r.json(); })
+        .then(function(results) {
+          if (!results.length) {
+            setStatus('City not found. Try a different name.');
+            return;
+          }
+          var r = results[0];
+          currentLat = parseFloat(r.lat);
+          currentLon = parseFloat(r.lon);
+          currentLocationName = city;
+          document.getElementById('location-display').innerHTML = '📍 ' + city;
+          fetchVetsByCoords(currentLat, currentLon);
+        })
+        .catch(loadFallback);
+    }
+
+    // ─────────────────────────────────────────────────────
+    // Init
+    // ─────────────────────────────────────────────────────
+    applyTranslations();
+    buildLangMenu();
+    locateMe(); // auto-detect on load
     </script>
 </body>
 </html>
