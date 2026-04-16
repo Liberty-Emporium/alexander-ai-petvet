@@ -57,7 +57,7 @@
     <div class="container">
         <header>
             <h1>🏥 <span data-i18n="Find a Vet">Find a Vet</span></h1>
-            <p class="subtitle" data-i18n="vet-subtitle">Real veterinary clinics near you — anywhere in the world</p>
+            <p class="subtitle">Real veterinary clinics near you — anywhere in the world</p>
         </header>
 
         <div class="location-bar">
@@ -231,60 +231,99 @@
       return {s:'General Practice', e:false};
     }
 
-    function fetchVetsByCoords(lat, lon, radiusKm) {
-      radiusKm = radiusKm || 15;
+    // Three Overpass mirrors — kumi first (most reliable), others as fallback
+    var OVERPASS_ENDPOINTS = [
+      'https://overpass.kumi.systems/api/interpreter',
+      'https://overpass-api.de/api/interpreter',
+      'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+    ];
+
+    function buildOSMVets(elements, lat, lon) {
+      return elements
+        .filter(function(e) { return e.tags && e.tags.name; })
+        .map(function(e) {
+          var tags = e.tags;
+          var elat = e.lat || (e.center && e.center.lat);
+          var elon = e.lon || (e.center && e.center.lon);
+          var st = overpassTypeToSpecialty(tags);
+          var addr = [tags['addr:housenumber'], tags['addr:street'], tags['addr:city']].filter(Boolean).join(' ');
+          if (!addr) addr = currentLocationName;
+          var dist = (elat && elon) ? haversine(lat, lon, elat, elon) : null;
+          var phone = tags.phone || tags['contact:phone'] || null;
+          var opening = tags.opening_hours || null;
+          return {
+            name: tags.name,
+            specialty: st.s,
+            emergency: st.e,
+            location: addr,
+            description: opening ? '🕐 ' + opening : '',
+            phone: phone,
+            distance_km: dist,
+            lat: elat, lon: elon
+          };
+        })
+        .sort(function(a,b) { return (a.distance_km||99) - (b.distance_km||99); });
+    }
+
+    function fetchVetsByCoords(lat, lon, radiusKm, endpointIdx) {
+      radiusKm = radiusKm || 50;  // start at 50km — covers most metro areas
+      endpointIdx = endpointIdx || 0;
       var radiusM = radiusKm * 1000;
       setStatus('<span class="spinner"></span>' + tr('loading'));
 
-      // Overpass query for veterinary POIs
-      var query = '[out:json][timeout:25];(node["amenity"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + ');way["amenity"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + ');node["healthcare"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + '););out body;';
+      var query = '[out:json][timeout:30];(node["amenity"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + ');way["amenity"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + ');node["healthcare"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + ');way["healthcare"="veterinary"](around:' + radiusM + ',' + lat + ',' + lon + '););out center;';
 
-      fetch('https://overpass-api.de/api/interpreter?data=' + encodeURIComponent(query))
-        .then(function(r) { return r.json(); })
+      var endpoint = OVERPASS_ENDPOINTS[endpointIdx];
+
+      fetch(endpoint, {
+        method: 'POST',
+        body: 'data=' + encodeURIComponent(query),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      })
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
         .then(function(data) {
           var elements = data.elements || [];
-          if (elements.length === 0 && radiusKm < 60) {
-            // expand search radius
-            return fetchVetsByCoords(lat, lon, radiusKm * 3);
+          if (elements.length === 0) {
+            if (radiusKm < 120) {
+              // expand radius
+              return fetchVetsByCoords(lat, lon, radiusKm * 2, endpointIdx);
+            }
+            // try next mirror
+            if (endpointIdx + 1 < OVERPASS_ENDPOINTS.length) {
+              return fetchVetsByCoords(lat, lon, 50, endpointIdx + 1);
+            }
+            loadFallback();
+            return;
           }
-          var vets = elements
-            .filter(function(e) { return e.tags && e.tags.name; })
-            .map(function(e) {
-              var tags = e.tags;
-              var elat = e.lat || (e.center && e.center.lat);
-              var elon = e.lon || (e.center && e.center.lon);
-              var st = overpassTypeToSpecialty(tags);
-              var addr = [tags['addr:street'], tags['addr:housenumber'], tags['addr:city']].filter(Boolean).join(' ');
-              if (!addr) addr = currentLocationName;
-              var dist = (elat && elon) ? haversine(lat, lon, elat, elon) : null;
-              var phone = tags.phone || tags['contact:phone'] || null;
-              var opening = tags.opening_hours || null;
-              return {
-                name: tags.name,
-                specialty: st.s,
-                emergency: st.e,
-                location: addr,
-                description: opening ? '🕐 ' + opening : '',
-                phone: phone,
-                distance_km: dist,
-                lat: elat, lon: elon
-              };
-            })
-            .sort(function(a,b) { return (a.distance_km||99) - (b.distance_km||99); });
-
+          var vets = buildOSMVets(elements, lat, lon);
           allVets = vets;
           setStatus('');
-          document.getElementById('source-tag').textContent = '📍 ' + vets.length + ' clinics found via OpenStreetMap · ' + currentLocationName;
+          document.getElementById('source-tag').textContent = '📍 ' + vets.length + ' clinics found near ' + currentLocationName + ' · OpenStreetMap';
           renderVets();
         })
         .catch(function(err) {
-          console.error(err);
-          loadFallback();
+          console.warn('Overpass endpoint ' + endpointIdx + ' failed:', err);
+          // try next mirror
+          if (endpointIdx + 1 < OVERPASS_ENDPOINTS.length) {
+            fetchVetsByCoords(lat, lon, radiusKm, endpointIdx + 1);
+          } else {
+            loadFallback();
+          }
         });
     }
 
     function loadFallback() {
-      // Fallback: well-known global vet chains
+      // If we have coords, try Google Maps search as last resort
+      if (currentLat && currentLon) {
+        var gmUrl = 'https://www.google.com/maps/search/veterinarian/@' + currentLat + ',' + currentLon + ',13z';
+        setStatus('🔍 Map data unavailable right now. <a href="' + gmUrl + '" target="_blank" style="color:#60a5fa">Search on Google Maps →</a> or type a city above.');
+      } else {
+        setStatus('🔍 Type your city above to find local vets.');
+      }
+      // Still show global chains below
       allVets = [
         {name:'Banfield Pet Hospital',specialty:'General Practice',emergency:false,location:'United States (Nationwide)',description:'Wellness plans & routine care inside PetSmart locations.',phone:'1-888-266-8738',distance_km:null},
         {name:'VCA Animal Hospitals',specialty:'General Practice',emergency:false,location:'United States (Nationwide)',description:'General practice with 1,000+ locations across North America.',phone:'1-800-822-7387',distance_km:null},
@@ -293,8 +332,7 @@
         {name:'IVC Evidensia',specialty:'General Practice',emergency:false,location:'Europe (UK, Germany, France, Netherlands…)',description:'Europe\'s largest veterinary group operating across 20+ countries.',phone:null,distance_km:null},
         {name:'ASPCA Animal Poison Control',specialty:'Poison Control',emergency:true,location:'National Hotline (US)',description:'24/7 poison control for pets. Call immediately if your pet ingests something toxic.',phone:'(888) 426-4435',distance_km:null},
       ];
-      setStatus('⚠️ Could not reach location services. Showing global resources. Type a city above to search.');
-      document.getElementById('source-tag').textContent = 'Showing global fallback resources';
+      document.getElementById('source-tag').textContent = 'Showing global resources — search a city above for local clinics';
       renderVets();
     }
 
