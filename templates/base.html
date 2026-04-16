@@ -3,26 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Password | Pet Vet AI</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>{% block title %}Pet Vet AI{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); min-height: 100vh; color: #fff; display: flex; align-items: center; justify-content: center; }
-        .container { width: 100%; max-width: 400px; padding: 2rem; }
-        .card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 2rem; backdrop-filter: blur(10px); }
-        h1 { text-align: center; margin-bottom: 0.5rem; font-size: 1.8rem; }
-        h1 span { color: #10b981; }
-        .sub { text-align:center; color:#94a3b8; margin-bottom:1.5rem; font-size:0.9rem; }
-        .form-group { margin-bottom: 1rem; }
-        label { display: block; margin-bottom: 0.5rem; font-weight: 600; }
-        input { width: 100%; padding: 0.8rem; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white; font-size: 1rem; }
-        .btn { width: 100%; padding: 1rem; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 1rem; }
-        .link { text-align: center; margin-top: 1rem; color: #94a3b8; font-size:0.9rem; }
-        .link a { color: #10b981; text-decoration: none; }
-        .error { background: rgba(239,68,68,0.2); border: 1px solid #dc2626; border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; color: #fca5a5; }
+        body { background: #0f172a; color: #f1f5f9; font-family: 'Segoe UI', system-ui, sans-serif; }
     </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
+
 <!-- ── Pet Vet AI Global Navbar ── -->
 <style>
 #pv-nav{background:#0a1628;border-bottom:1px solid rgba(255,255,255,0.08);position:sticky;top:0;z-index:9000;display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:56px;font-family:'Segoe UI',system-ui,sans-serif;}
@@ -65,7 +55,6 @@
   </button>
 </nav>
 <script>
-// Highlight active nav link based on current path
 (function(){
   var path = window.location.pathname;
   var map = {'/pets':'pv-link-pets','/diagnose':'pv-link-diagnose','/vets':'pv-link-vets','/profile':'pv-link-profile','/my-settings':'pv-link-settings','/login':'pv-link-login','/':'pv-link-home'};
@@ -75,23 +64,21 @@
 </script>
 <!-- ── end navbar ── -->
 
-    <div class="container">
-        <div class="card">
-            <h1>Pet<span>Vet</span> AI</h1>
-            <p class="sub">Set a new password</p>
-            {% if error %}<div class="error">❌ {{ error }}</div>{% endif %}
-            <form method="POST">
-                <div class="form-group">
-                    <label>New Password</label>
-                    <input type="password" name="new_password" placeholder="At least 6 characters" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <label>Confirm Password</label>
-                    <input type="password" name="confirm_password" placeholder="Confirm new password" required minlength="6">
-                </div>
-                <button type="submit" class="btn">🔐 Reset Password</button>
-            </form>
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container mt-3">
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} alert-dismissible fade show">
+          {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
+      {% endfor %}
     </div>
+  {% endif %}
+{% endwith %}
+
+{% block content %}{% endblock %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% block extra_js %}{% endblock %}
 </body>
 </html>
