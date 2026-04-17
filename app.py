@@ -545,9 +545,13 @@ def about():
     """About page"""
     return render_template('about.html')
 
-@app.route('/contact')
+@app.route('/contact', methods=['GET', 'POST'])
 def contact():
     """Contact page"""
+    if request.method == 'POST':
+        # Basic form handling — in production wire up to email/SMTP
+        flash('Thanks for your message! We\'ll get back to you soon.', 'success')
+        return redirect(url_for('contact'))
     return render_template('contact.html')
 
 # API endpoint for mobile app
