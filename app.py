@@ -12,6 +12,7 @@ import requests
 import hashlib
 import bcrypt
 import sqlite3
+import stripe
 from datetime import datetime
 from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, session, g
 
@@ -106,6 +107,13 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+# ==================== STRIPE CONFIG ====================
+stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+STRIPE_PRICE_ID = os.environ.get('STRIPE_PRICE_ID', '')  # Monthly recurring price ID
+APP_URL = os.environ.get('APP_URL', 'https://pet-vet-ai-production.up.railway.app')
 
 # ==================== AUTH HELPERS ====================
 
@@ -927,29 +935,123 @@ def dashboard():
                          user_name=session['user_name'],
                          subscription=user_sub)
 
-@app.route('/upgrade', methods=['GET', 'POST'])
+@app.route('/upgrade')
 @login_required
 def upgrade():
     user_id = session['user_id']
     subs = load_subscriptions()
     user_sub = subs.get(user_id, {'plan': 'free'})
-    
-    if request.method == 'POST':
-        plan = request.form.get('plan', 'free')
-        
-        # In production, this would integrate with Stripe
-        # For now, we simulate the upgrade
-        subs[user_id] = {
-            'plan': plan,
-            'diagnoses_used': user_sub.get('diagnoses_used', 0),
-            'upgraded': datetime.now().isoformat()
-        }
+    return render_template('upgrade.html',
+                           current_plan=user_sub.get('plan', 'free'),
+                           stripe_key=STRIPE_PUBLISHABLE_KEY,
+                           stripe_configured=bool(stripe.api_key and STRIPE_PRICE_ID))
+
+
+@app.route('/stripe/checkout', methods=['POST'])
+@login_required
+def stripe_checkout():
+    """Create a Stripe Checkout session and redirect user there."""
+    if not stripe.api_key:
+        flash('Payment system not configured yet. Contact support.', 'error')
+        return redirect(url_for('upgrade'))
+    user_id = session['user_id']
+    try:
+        checkout = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            mode='subscription',
+            line_items=[{'price': STRIPE_PRICE_ID, 'quantity': 1}],
+            client_reference_id=user_id,
+            customer_email=user_id,  # user_id is their email
+            success_url=APP_URL + '/stripe/success?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=APP_URL + '/upgrade',
+            metadata={'user_id': user_id},
+        )
+        return redirect(checkout.url, code=303)
+    except Exception as e:
+        flash(f'Payment error: {str(e)}', 'error')
+        return redirect(url_for('upgrade'))
+
+
+@app.route('/stripe/success')
+@login_required
+def stripe_success():
+    """User lands here after successful Stripe Checkout."""
+    # Webhook will do the real upgrade; this just shows a thank-you
+    flash('🎉 Payment successful! Your Premium plan is now active.', 'success')
+    return redirect(url_for('dashboard'))
+
+
+@app.route('/stripe/portal', methods=['POST'])
+@login_required
+def stripe_portal():
+    """Send user to Stripe Customer Portal to manage/cancel subscription."""
+    if not stripe.api_key:
+        flash('Payment system not configured yet.', 'error')
+        return redirect(url_for('upgrade'))
+    user_id = session['user_id']
+    subs = load_subscriptions()
+    user_sub = subs.get(user_id, {})
+    customer_id = user_sub.get('stripe_customer_id')
+    if not customer_id:
+        flash('No active subscription found.', 'error')
+        return redirect(url_for('upgrade'))
+    try:
+        portal = stripe.billing_portal.Session.create(
+            customer=customer_id,
+            return_url=APP_URL + '/upgrade',
+        )
+        return redirect(portal.url, code=303)
+    except Exception as e:
+        flash(f'Portal error: {str(e)}', 'error')
+        return redirect(url_for('upgrade'))
+
+
+@app.route('/stripe/webhook', methods=['POST'])
+def stripe_webhook():
+    """Stripe sends events here. Handles checkout.session.completed and
+    customer.subscription.deleted to keep local plan in sync."""
+    payload = request.get_data()
+    sig = request.headers.get('Stripe-Signature', '')
+    try:
+        if STRIPE_WEBHOOK_SECRET:
+            event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
+        else:
+            event = stripe.Event.construct_from(json.loads(payload), stripe.api_key)
+    except (ValueError, stripe.error.SignatureVerificationError):
+        return 'Bad payload', 400
+
+    if event['type'] == 'checkout.session.completed':
+        sess = event['data']['object']
+        user_id = sess.get('client_reference_id') or sess.get('customer_email')
+        customer_id = sess.get('customer')
+        subscription_id = sess.get('subscription')
+        if user_id:
+            subs = load_subscriptions()
+            entry = subs.get(user_id, {})
+            entry.update({
+                'plan': 'premium',
+                'stripe_customer_id': customer_id,
+                'stripe_subscription_id': subscription_id,
+                'upgraded': datetime.now().isoformat(),
+            })
+            subs[user_id] = entry
+            save_subscriptions(subs)
+
+    elif event['type'] in ('customer.subscription.deleted', 'customer.subscription.paused'):
+        sub_obj = event['data']['object']
+        customer_id = sub_obj.get('customer')
+        # Find user by customer_id
+        subs = load_subscriptions()
+        for uid, data in subs.items():
+            if data.get('stripe_customer_id') == customer_id:
+                data['plan'] = 'free'
+                data['stripe_subscription_id'] = None
+                data['cancelled'] = datetime.now().isoformat()
+                subs[uid] = data
+                break
         save_subscriptions(subs)
-        
-        flash(f'Upgraded to {plan.title()} plan!', 'success')
-        return redirect(url_for('dashboard'))
-    
-    return render_template('upgrade.html', current_plan=user_sub.get('plan', 'free'))
+
+    return 'ok', 200
 
 def check_diagnosis_limit():
     """Check if user has reached their diagnosis limit"""
