@@ -177,7 +177,7 @@ def get_groq_api_key(user_id=None):
 
 # Groq API Configuration (no env var fallback)
 GROQ_API_KEY = ''
-GROQ_MODEL = "llama-3.2-90b-vision-preview"  # Groq's vision model
+GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"  # Groq vision model (updated from deprecated llama-3.2-90b-vision-preview)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -194,6 +194,12 @@ def analyze_pet_image(image_path, animal_type="dog"):
         return {"error": "Groq API key not configured. Go to Settings to add your key.", "success": False}
     
     try:
+        # Detect MIME type from file extension
+        ext = image_path.rsplit('.', 1)[-1].lower()
+        mime_map = {'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+                    'gif': 'image/gif', 'webp': 'image/webp'}
+        mime_type = mime_map.get(ext, 'image/jpeg')
+
         # Convert image to base64
         with open(image_path, "rb") as img_file:
             img_base64 = base64.b64encode(img_file.read()).decode('utf-8')
@@ -246,7 +252,7 @@ If the image is unclear or not of a pet, return {{"error": "Image unclear or not
                         {"type": "text", "text": prompt},
                         {
                             "type": "image_url",
-                            "image_url": {"url": f"data:image/jpeg;base64,{img_base64}"}
+                            "image_url": {"url": f"data:{mime_type};base64,{img_base64}"}
                         }
                     ]
                 }
@@ -275,7 +281,13 @@ If the image is unclear or not of a pet, return {{"error": "Image unclear or not
             except json.JSONDecodeError:
                 return {"diagnosis": content[:200], "success": True, "confidence": "low"}
         else:
-            return {"error": f"API error: {response.status_code}", "success": False}
+            # Surface the actual error message from Groq
+            try:
+                err_body = response.json()
+                err_msg = err_body.get('error', {}).get('message', response.text[:200])
+            except Exception:
+                err_msg = response.text[:200]
+            return {"error": f"Groq API error {response.status_code}: {err_msg}", "success": False}
             
     except Exception as e:
         return {"error": str(e), "success": False}
