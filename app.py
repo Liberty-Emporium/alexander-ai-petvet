@@ -96,7 +96,7 @@ app.jinja_env.globals['csrf_token'] = _get_csrf_token
 
 
 # Configuration
-UPLOAD_FOLDER = os.path.join(DATA_DIR, 'uploads')  # ✅ uses /data volume
+UPLOAD_FOLDER = os.path.join(DATA_DIR, 'uploads')  # uses /data volume
 DATA_DIR = os.environ.get('DATA_DIR', os.path.join('/data'))
 SETTINGS_FILE = os.path.join(os.path.dirname(__file__), 'data', 'settings.json')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
