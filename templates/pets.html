@@ -192,7 +192,7 @@
         if (!pendingDeleteId) return;
         document.getElementById('goodbye-modal').style.display = 'none';
         try {
-            await fetch('/api/pets/' + pendingDeleteId, { method: 'DELETE' });
+            await fetch('/api/pets/' + pendingDeleteId, { method: 'DELETE', credentials: 'include' });
             allPets = allPets.filter(p => p.id !== pendingDeleteId);
             pendingDeleteId = null;
             renderPets();

@@ -328,7 +328,7 @@
       var endpoint = OVERPASS_ENDPOINTS[endpointIdx];
 
       fetch(endpoint, {
-        method: 'POST',
+        method: 'POST', credentials: 'include',
         body: 'data=' + encodeURIComponent(query),
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       })
