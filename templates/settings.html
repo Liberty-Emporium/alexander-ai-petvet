@@ -141,6 +141,10 @@
   </form>
 </div>
 <style>
+    html,body{overflow-x:hidden!important;max-width:100%;}
+    img{max-width:100%;height:auto;}
+    @media(max-width:768px){table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}input,select,textarea{font-size:16px!important;}}
+
 .model-card{border:2px solid #e2e8f0;border-radius:12px;padding:1rem;cursor:pointer;transition:all 0.15s ease;background:white;position:relative;}
 .model-card:hover{border-color:#6366f1;box-shadow:0 4px 12px rgba(99,102,241,.15);transform:translateY(-1px);}
 .model-card.selected{border-color:#6366f1;background:#eef2ff;box-shadow:0 0 0 2px rgba(99,102,241,.3);}
