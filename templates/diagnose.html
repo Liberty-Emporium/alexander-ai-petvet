@@ -116,6 +116,8 @@
             </div>
             
             <form action="/upload" method="POST" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <div class="form-group">
                     <label>Select Animal Type</label>
                     <div class="animal-selector">

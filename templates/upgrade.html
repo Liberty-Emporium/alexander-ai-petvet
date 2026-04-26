@@ -128,6 +128,8 @@
     <h3>✅ You're on Premium</h3>
     <p>Manage your subscription, update your payment method, or cancel anytime via the Stripe Customer Portal.</p>
     <form action="/stripe/portal" method="POST" style="max-width:280px;margin:0 auto;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
       <button type="submit" class="btn btn-danger">Manage / Cancel Subscription</button>
     </form>
   </div>
@@ -173,6 +175,8 @@
         <span class="btn btn-gray">✓ Active Plan</span>
       {% elif stripe_configured %}
         <form action="/stripe/checkout" method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
           <button type="submit" class="btn btn-primary">💳 Upgrade Now — $9.99/mo</button>
         </form>
       {% else %}

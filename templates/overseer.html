@@ -84,15 +84,21 @@
             <td>
               {% if u.plan != 'premium' %}
               <form method="POST" action="/overseer/user/{{ u.email }}/upgrade" style="display:inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <button class="btn btn-sm btn-success">Upgrade</button>
               </form>
               {% else %}
               <form method="POST" action="/overseer/user/{{ u.email }}/downgrade" style="display:inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <button class="btn btn-sm btn-outline-warning">Downgrade</button>
               </form>
               {% endif %}
               <form method="POST" action="/overseer/user/{{ u.email }}/delete" style="display:inline"
                     onsubmit="return confirm('Delete {{ u.email }}?')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                 <button class="btn btn-sm btn-outline-danger">Delete</button>
               </form>
             </td>
