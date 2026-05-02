@@ -1496,8 +1496,8 @@ def api_analyze_damage():
     else:
         prompt = (f"You are a veterinary expert AI. Analyze this photo of a {animal_type} "
                   "and identify any visible health conditions. "
-                  "Respond in JSON: {\"diagnosis\": \"...\", \"confidence\": \"high/medium/low\", ""
-                  "\"severity\": \"critical/urgent/monitor/none\", \"description\": \"...\", ""
+                  "Respond in JSON: {\"diagnosis\": \"...\", \"confidence\": \"high/medium/low\", "
+                  "\"severity\": \"critical/urgent/monitor/none\", \"description\": \"...\", "
                   "\"recommendation\": \"\"}")
 
     try:
