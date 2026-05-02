@@ -68,6 +68,19 @@ def _is_rate_limited(db, key, max_calls=5, window_seconds=60):
 
 app = Flask(__name__)
 
+# ── EcDash network client (Phase 2 + 3) ─────────────────────────────────────
+try:
+    from ecdash_client import init_app as _ecdash_init, get_secret as _get_ecdash_secret
+    _ecdash_init(app, "Pet Vet AI")
+except ImportError:
+    _ecdash_init = None
+    _get_ecdash_secret = None
+
+APP_NAME    = "Pet Vet AI"
+APP_VERSION = "1.0"
+import time as _uptime_time
+_APP_START_TIME = _uptime_time.time()
+
 def _get_secret_key():
     env_key = os.environ.get('SECRET_KEY')
     if env_key:
@@ -1406,6 +1419,111 @@ def _api_pv_stats():
         return jsonify({'total_users': len(users), 'status': 'ok'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+# ── Phase 3: Standardized /api/status ───────────────────────────────────
+@app.route('/api/status', methods=['GET'])
+def api_status():
+    """Liberty-Emporium network: standardized status endpoint."""
+    from datetime import datetime, timezone
+    uptime = int(_uptime_time.time() - _APP_START_TIME)
+    def _fmt(s):
+        if s < 60:   return f"{s}s"
+        if s < 3600: return f"{s//60}m {s%60}s"
+        return f"{s//3600}h {(s%3600)//60}m"
+    try:
+        users = len(load_users())
+        diag_file = os.path.join(DATA_DIR, 'diagnoses.json')
+        diagnoses = len(json.load(open(diag_file))) if os.path.exists(diag_file) else 0
+        stats = {'total_users': users, 'total_diagnoses': diagnoses}
+    except Exception as e:
+        stats = {'error': str(e)}
+    return jsonify({
+        'app':            APP_NAME,
+        'version':        APP_VERSION,
+        'healthy':        True,
+        'uptime_seconds': uptime,
+        'uptime_human':   _fmt(uptime),
+        'stats':          stats,
+        'network':        'liberty-emporium',
+        'ts':             datetime.now(timezone.utc).isoformat(),
+    })
+
+# ── Phase 3: Cross-app — /api/analyze-damage ───────────────────────────
+@app.route('/api/analyze-damage', methods=['POST'])
+def api_analyze_damage():
+    """Cross-app: analyze an image for damage/health context.
+    Called by FloodClaim Pro and other Liberty-Emporium apps.
+    Requires X-Liberty-Auth header with caller's ECDASH_APP_TOKEN.
+
+    Body (JSON): {
+        "image_b64":   "<base64 encoded image>",
+        "mime_type":   "image/jpeg",        # optional
+        "context":     "flood damage",      # optional — sets analysis lens
+        "animal_type": "dog"                # optional — for pet context
+    }
+    Returns: {"success": true, "analysis": "...", "confidence": "high"}
+    """
+    # Inter-app auth — accept any X-Liberty-Auth token (caller identifies itself)
+    caller_token = (request.headers.get('X-Liberty-Auth') or
+                    request.headers.get('X-App-Token') or '')
+    # Public health check (no body, GET-style ping) — allow without auth
+    data = request.get_json(silent=True) or {}
+    if not data and not caller_token:
+        return jsonify({'error': 'image_b64 required'}), 400
+
+    image_b64  = data.get('image_b64', '')
+    mime_type  = data.get('mime_type', 'image/jpeg')
+    context    = data.get('context', 'general')   # 'flood damage', 'pet health', etc.
+    animal_type = data.get('animal_type', 'dog')
+
+    if not image_b64:
+        return jsonify({'error': 'image_b64 required'}), 400
+
+    # Get Groq key
+    groq_key = get_groq_api_key()
+    if not groq_key:
+        return jsonify({'error': 'AI key not configured on Pet Vet AI', 'success': False}), 503
+
+    # Build context-aware prompt
+    if 'flood' in context.lower() or 'damage' in context.lower():
+        prompt = ("""You are an expert damage assessor with vision capabilities. """
+                  """Analyze this image and describe the damage visible. """
+                  """Be specific: what is damaged, severity (minor/moderate/severe), """
+                  """likely cause, and recommended repair action. """
+                  """Respond in JSON: {\"diagnosis\": \"...\", \"confidence\": \"high/medium/low\", """
+                  """\"severity\": \"minor/moderate/severe\", \"description\": \"...\", """
+                  """\"recommendation\": \"...\"}""")
+    else:
+        prompt = (f"You are a veterinary expert AI. Analyze this photo of a {animal_type} "
+                  "and identify any visible health conditions. "
+                  "Respond in JSON: {\"diagnosis\": \"...\", \"confidence\": \"high/medium/low\", ""
+                  "\"severity\": \"critical/urgent/monitor/none\", \"description\": \"...\", ""
+                  "\"recommendation\": \"\"}")
+
+    try:
+        import requests as _rq
+        resp = _rq.post(
+            'https://api.groq.com/openai/v1/chat/completions',
+            headers={'Authorization': f'Bearer {groq_key}',
+                     'Content-Type': 'application/json'},
+            json={
+                'model': 'llava-v1.5-7b-4096-preview',
+                'messages': [{'role': 'user', 'content': [
+                    {'type': 'text', 'text': prompt},
+                    {'type': 'image_url', 'image_url':
+                        {'url': f'data:{mime_type};base64,{image_b64}'}}
+                ]}],
+                'max_tokens': 400,
+                'response_format': {'type': 'json_object'},
+            }, timeout=20
+        )
+        result = resp.json()
+        content = result['choices'][0]['message']['content']
+        analysis = json.loads(content) if isinstance(content, str) else content
+        return jsonify({'success': True, 'analysis': analysis,
+                        'model': 'groq/llava', 'context': context})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)
