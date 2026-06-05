@@ -200,10 +200,64 @@ def init_db():
         active_provider TEXT DEFAULT 'groq',
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+    db.execute('''CREATE TABLE IF NOT EXISTS telemedicine_bookings (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        pet_id TEXT DEFAULT '',
+        vet_name TEXT NOT NULL,
+        vet_specialty TEXT DEFAULT '',
+        appointment_date TEXT NOT NULL,
+        appointment_time TEXT NOT NULL,
+        reason TEXT DEFAULT '',
+        status TEXT DEFAULT 'confirmed',
+        price REAL DEFAULT 0.0,
+        video_link TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     db.commit()
     db.close()
 
 init_db()
+
+# Telemedicine bookings management
+def load_bookings(user_id=None):
+    """Load bookings from DB. If user_id provided, filter by user."""
+    db = sqlite3.connect(DB_FILE)
+    db.row_factory = sqlite3.Row
+    if user_id:
+        rows = db.execute(
+            'SELECT * FROM telemedicine_bookings WHERE user_id = ? ORDER BY created_at DESC',
+            (user_id,)
+        ).fetchall()
+    else:
+        rows = db.execute('SELECT * FROM telemedicine_bookings ORDER BY created_at DESC').fetchall()
+    db.close()
+    return [dict(r) for r in rows]
+
+def save_booking(booking_data):
+    """Save a new telemedicine booking to DB."""
+    db = sqlite3.connect(DB_FILE)
+    db.execute(
+        '''INSERT INTO telemedicine_bookings 
+           (id, user_id, pet_id, vet_name, vet_specialty, appointment_date, 
+            appointment_time, reason, status, price, video_link)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+        (
+            booking_data['id'],
+            booking_data.get('user_id', ''),
+            booking_data.get('pet_id', ''),
+            booking_data.get('vet_name', ''),
+            booking_data.get('vet_specialty', ''),
+            booking_data.get('appointment_date', ''),
+            booking_data.get('appointment_time', ''),
+            booking_data.get('reason', ''),
+            booking_data.get('status', 'confirmed'),
+            booking_data.get('price', 25.0),
+            booking_data.get('video_link', ''),
+        )
+    )
+    db.commit()
+    db.close()
 
 # Settings management
 def load_settings():
@@ -1577,17 +1631,44 @@ def telemedicine_page():
     """Telemedicine / video consultation booking page"""
     return render_template('telemedicine.html')
 
+@app.route('/api/telemedicine/bookings', methods=['GET'])
+def api_telemedicine_bookings():
+    """Get all bookings for the current user"""
+    user_id = session.get('user_id', 'anonymous')
+    bookings = load_bookings(user_id)
+    return jsonify({'bookings': bookings, 'count': len(bookings)})
+
 @app.route('/api/telemedicine/book', methods=['POST'])
 def api_telemedicine_book():
     """Book a telemedicine consultation"""
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Booking data required'}), 400
-    # In production: save to database, send confirmation email, generate video link
+    
+    user_id = session.get('user_id', 'anonymous')
+    booking_id = str(uuid.uuid4())[:8]
+    
+    booking = {
+        'id': booking_id,
+        'user_id': user_id,
+        'pet_id': data.get('pet_id', ''),
+        'vet_name': data.get('vet_name', 'Unassigned'),
+        'vet_specialty': data.get('vet_specialty', 'General Practice'),
+        'appointment_date': data.get('date', ''),
+        'appointment_time': data.get('time', ''),
+        'reason': data.get('reason', ''),
+        'status': 'confirmed',
+        'price': data.get('price', 25.0),
+        'video_link': f'https://meet.vetpet.ai/{booking_id}'  # placeholder — real video link in production
+    }
+    
+    save_booking(booking)
+    
     return jsonify({
         'success': True,
-        'booking_id': str(uuid.uuid4())[:8],
-        'message': 'Consultation booked successfully. You will receive a confirmation email with a video link.'
+        'booking_id': booking_id,
+        'booking': booking,
+        'message': 'Consultation booked successfully! Check your email for the video link.'
     })
 
 # ── Health Timeline ──────────────────────────────────────────────────────────

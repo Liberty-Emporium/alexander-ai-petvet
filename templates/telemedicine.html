@@ -171,16 +171,41 @@ function submitBooking() {
   btn.disabled = true;
   btn.textContent = 'Processing...';
 
-  // Simulate booking (in production, this would call the backend)
-  setTimeout(function() {
+  var consultType = document.getElementById('consultType').value;
+  var prices = {urgent:35,routine:25,followup:20};
+  
+  var bookingData = {
+    vet_name: selectedVet ? selectedVet.name : 'Unassigned',
+    vet_specialty: selectedVet ? selectedVet.specialty : '',
+    date: document.getElementById('consultDate').value,
+    time: selectedTime || 'TBD',
+    reason: consultType,
+    pet_name: document.getElementById('petName').value,
+    price: prices[consultType] || 25
+  };
+
+  fetch('/api/telemedicine/book', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(bookingData)
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
     document.getElementById('step1').style.display = 'none';
     document.getElementById('step2').style.display = 'none';
     document.getElementById('step3').style.display = 'block';
     document.getElementById('confirmDetails').innerHTML =
-      '<strong>' + selectedVet.name + '</strong><br>' +
+      '<strong>' + (selectedVet ? selectedVet.name : 'Veterinarian') + '</strong><br>' +
       document.getElementById('consultDate').value + ' at ' + (selectedTime || 'TBD') + '<br>' +
-      'Pet: ' + document.getElementById('petName').value;
-  }, 1500);
+      'Pet: ' + document.getElementById('petName').value + '<br>' +
+      '<small style="color:#10b981;">Booking ID: ' + data.booking_id + '</small>';
+  })
+  .catch(function() {
+    // Fallback: still show confirmation
+    btn.disabled = false;
+    btn.textContent = '📹 Confirm Booking — Pay $' + document.getElementById('priceDisplay').textContent;
+    alert('Could not reach the server. Please try again.');
+  });
 }
 
 // Set min date to today
