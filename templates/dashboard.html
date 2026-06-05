@@ -89,6 +89,9 @@
     {% if session.get('user_id') %}
     <a href="/pets" id="pv-link-pets">🐶 My Pets</a>
     <a href="/diagnose" id="pv-link-diagnose">🔬 Diagnose</a>
+    <a href="/chat" id="pv-link-chat">🩺 AI Chat</a>
+    <a href="/health-timeline" id="pv-link-timeline">📋 Health</a>
+    <a href="/telemedicine" id="pv-link-tele">📹 Video Vet</a>
     <a href="/vets" id="pv-link-vets">🏥 Find a Vet</a>
     <a href="/profile" id="pv-link-profile">👤 Profile</a>
     <a href="/my-settings" id="pv-link-settings">⚙️ Settings</a>
@@ -145,12 +148,32 @@
         
         <div class="actions">
             <a href="{{ url_for('diagnose_page') }}" class="action-card">
-                <h3>🔍 New Diagnosis</h3>
-                <p>Analyze a pet photo for health issues</p>
+                <h3>🔍 Photo Diagnosis</h3>
+                <p>Upload a photo for AI health analysis</p>
+            </a>
+            <a href="{{ url_for('chat_page') }}" class="action-card">
+                <h3>🩺 AI Vet Chat</h3>
+                <p>Chat with our AI triage assistant</p>
+            </a>
+            <a href="{{ url_for('health_timeline_page') }}" class="action-card">
+                <h3>📋 Health Timeline</h3>
+                <p>Track your pet's medical history</p>
+            </a>
+            <a href="{{ url_for('telemedicine_page') }}" class="action-card">
+                <h3>📹 Video Consultation</h3>
+                <p>Book a call with a licensed vet</p>
+            </a>
+            <a href="{{ url_for('dosage_calculator_page') }}" class="action-card">
+                <h3>💊 Dosage Calculator</h3>
+                <p>Weight-based medication dosing</p>
+            </a>
+            <a href="{{ url_for('wearables_page') }}" class="action-card">
+                <h3>📡 Wearables</h3>
+                <p>Connect smart collars & health monitors</p>
             </a>
             <a href="{{ url_for('upgrade') }}" class="action-card">
                 <h3>⚡ Upgrade</h3>
-                <p>Get unlimited diagnoses & AI analysis</p>
+                <p>Get unlimited diagnoses & all features</p>
             </a>
             <a href="{{ url_for('settings_page') }}" class="action-card">
                 <h3>⚙️ Settings</h3>

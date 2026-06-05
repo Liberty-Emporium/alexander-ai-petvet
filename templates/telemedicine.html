@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Book a Vet Consultation | Pet Vet AI{% endblock %}
+{% block extra_css %}
+<style>
+.tele-container{max-width:900px;margin:0 auto;padding:2rem 1rem;}
+.tele-header{text-align:center;margin-bottom:2rem;}
+.tele-header h1{font-size:1.8rem;margin-bottom:0.5rem;}
+.tele-header p{color:#94a3b8;}
+.tele-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem;margin-bottom:2rem;}
+.vet-card-select{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:1.5rem;cursor:pointer;transition:all 0.2s;position:relative;}
+.vet-card-select:hover{border-color:#10b981;transform:translateY(-2px);}
+.vet-card-select.selected{border-color:#10b981;background:rgba(16,185,129,0.08);box-shadow:0 0 0 2px rgba(16,185,129,0.3);}
+.vet-card-select .check{position:absolute;top:12px;right:12px;width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:transparent;}
+.vet-card-select.selected .check{background:#10b981;border-color:#10b981;color:#fff;}
+.vet-card-select h3{color:#e2e8f0;font-size:1rem;margin-bottom:0.3rem;}
+.vet-card-select .specialty{display:inline-block;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:0.15rem 0.6rem;border-radius:10px;font-size:0.72rem;margin:0.3rem 0;}
+.vet-card-select .meta{color:#94a3b8;font-size:0.82rem;margin:0.2rem 0;}
+.vet-card-select .price{color:#10b981;font-weight:700;font-size:0.95rem;margin-top:0.5rem;}
+.booking-form{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:2rem;display:none;}
+.booking-form.visible{display:block;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+.form-group{margin-bottom:1rem;}
+.form-group label{display:block;font-weight:600;margin-bottom:0.4rem;color:#e2e8f0;font-size:0.88rem;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:0.7rem;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;font-size:0.9rem;}
+.form-group textarea{resize:vertical;min-height:80px;}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#10b981;}
+.btn-book{width:100%;padding:1rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:12px;font-size:1.05rem;font-weight:700;cursor:pointer;margin-top:1rem;transition:transform 0.15s;}
+.btn-book:hover{transform:translateY(-2px);}
+.btn-book:disabled{background:#374151;cursor:not-allowed;transform:none;}
+.time-slots{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;}
+.time-slot{padding:0.4rem 0.8rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;font-size:0.82rem;color:#94a3b8;cursor:pointer;transition:all 0.15s;}
+.time-slot:hover{border-color:#10b981;color:#10b981;}
+.time-slot.selected{background:rgba(16,185,129,0.15);border-color:#10b981;color:#10b981;}
+.time-slot.unavailable{opacity:0.3;cursor:not-allowed;text-decoration:line-through;}
+.confirmation{text-align:center;padding:2rem;display:none;}
+.confirmation .icon{font-size:3rem;margin-bottom:1rem;}
+.confirmation h2{color:#10b981;margin-bottom:0.5rem;}
+.confirmation p{color:#94a3b8;margin-bottom:1rem;}
+@media(max-width:640px){.form-row{grid-template-columns:1fr;}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="tele-container">
+  <div class="tele-header">
+    <h1>📹 Book a Video Consultation</h1>
+    <p>Connect with a licensed veterinarian from home — available 24/7 for urgent and routine care</p>
+  </div>
+
+  <div id="step1">
+    <h2 style="font-size:1.1rem;margin-bottom:1rem;">Select a Veterinarian</h2>
+    <div class="tele-grid" id="vetGrid">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <div class="booking-form" id="step2">
+    <h2 style="font-size:1.1rem;margin-bottom:1rem;">📅 Book Your Consultation</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Pet Name</label>
+        <input type="text" id="petName" placeholder="e.g. Bailey">
+      </div>
+      <div class="form-group">
+        <label>Pet Type</label>
+        <select id="petType">
+          <option value="dog">🐕 Dog</option>
+          <option value="cat">🐈 Cat</option>
+          <option value="horse">🐴 Horse</option>
+          <option value="bird">🐦 Bird</option>
+          <option value="reptile">🦎 Reptile</option>
+          <option value="small_pet">🐹 Small Pet</option>
+          <option value="other">🐾 Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Preferred Date</label>
+        <input type="date" id="consultDate">
+      </div>
+      <div class="form-group">
+        <label>Consultation Type</label>
+        <select id="consultType">
+          <option value="urgent">🚨 Urgent — within 1 hour ($35)</option>
+          <option value="routine">📋 Routine — next available ($25)</option>
+          <option value="followup">🔄 Follow-up — existing issue ($20)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Available Time Slots</label>
+      <div class="time-slots" id="timeSlots">
+        <span class="time-slot" onclick="selectTime(this)">9:00 AM</span>
+        <span class="time-slot" onclick="selectTime(this)">10:00 AM</span>
+        <span class="time-slot" onclick="selectTime(this)">11:00 AM</span>
+        <span class="time-slot" onclick="selectTime(this)">1:00 PM</span>
+        <span class="time-slot" onclick="selectTime(this)">2:00 PM</span>
+        <span class="time-slot" onclick="selectTime(this)">3:00 PM</span>
+        <span class="time-slot" onclick="selectTime(this)">4:00 PM</span>
+        <span class="time-slot" onclick="selectTime(this)">7:00 PM</span>
+        <span class="time-slot" onclick="selectTime(this)">8:00 PM</span>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Describe the Issue</label>
+      <textarea id="issueDesc" placeholder="Briefly describe what's going on with your pet..."></textarea>
+    </div>
+    <button class="btn-book" id="bookBtn" onclick="submitBooking()">📹 Confirm Booking — Pay $<span id="priceDisplay">25</span></button>
+  </div>
+
+  <div class="confirmation" id="step3">
+    <div class="icon">✅</div>
+    <h2>Consultation Booked!</h2>
+    <p id="confirmDetails"></p>
+    <p style="font-size:0.85rem;color:#64748b;">You'll receive a confirmation email with a video link 15 minutes before your appointment.</p>
+    <a href="/" class="btn-cta" style="display:inline-block;margin-top:1rem;padding:0.7rem 1.5rem;background:#10b981;color:#fff;border-radius:10px;text-decoration:none;font-weight:600;">Back to Home</a>
+  </div>
+</div>
+
+<script>
+var vets = [
+  {id:1,name:'Dr. Sarah Mitchell',specialty:'General Practice & Internal Medicine',price:25,rating:'4.9',reviews:342,available:'Now',photo:'👩‍⚕️'},
+  {id:2,name:'Dr. James Chen',specialty:'Emergency & Critical Care',price:35,rating:'4.8',reviews:218,available:'Now',photo:'👨‍⚕️'},
+  {id:3,name:'Dr. Maria Rodriguez',specialty:'Dermatology & Allergies',price:30,rating:'4.9',reviews:156,available:'15 min',photo:'👩‍⚕️'},
+  {id:4,name:'Dr. David Thompson',specialty:'Exotic Animals & Reptiles',price:30,rating:'4.7',reviews:89,available:'30 min',photo:'👨‍⚕️'},
+  {id:5,name:'Dr. Emily Park',specialty:'Surgery & Orthopedics',price:35,rating:'4.8',reviews:203,available:'1 hr',photo:'👩‍⚕️'},
+  {id:6,name:'Dr. Robert Williams',specialty:'Behavior & Wellness',price:20,rating:'4.9',reviews:412,available:'Now',photo:'👨‍⚕️'},
+];
+
+var selectedVet = null;
+var selectedTime = null;
+
+function renderVets() {
+  var grid = document.getElementById('vetGrid');
+  grid.innerHTML = vets.map(function(v) {
+    return '<div class="vet-card-select" onclick="selectVet('+v.id+',this)">' +
+      '<div class="check">✓</div>' +
+      '<div style="font-size:2rem;margin-bottom:0.5rem;">' + v.photo + '</div>' +
+      '<h3>' + v.name + '</h3>' +
+      '<span class="specialty">' + v.specialty + '</span>' +
+      '<p class="meta">⭐ ' + v.rating + ' (' + v.reviews + ' reviews)</p>' +
+      '<p class="meta">🕐 Available: ' + v.available + '</p>' +
+      '<p class="price">$' + v.price + ' per consultation</p>' +
+    '</div>';
+  }).join('');
+}
+
+function selectVet(id, el) {
+  selectedVet = vets.find(function(v) { return v.id === id; });
+  document.querySelectorAll('.vet-card-select').forEach(function(e) { e.classList.remove('selected'); });
+  el.classList.add('selected');
+  document.getElementById('step2').classList.add('visible');
+  document.getElementById('priceDisplay').textContent = selectedVet.price;
+  document.getElementById('step2').scrollIntoView({behavior:'smooth'});
+}
+
+function selectTime(el) {
+  if (el.classList.contains('unavailable')) return;
+  document.querySelectorAll('.time-slot').forEach(function(e) { e.classList.remove('selected'); });
+  el.classList.add('selected');
+  selectedTime = el.textContent;
+}
+
+document.getElementById('consultType').addEventListener('change', function() {
+  var prices = {urgent:35,routine:25,followup:20};
+  document.getElementById('priceDisplay').textContent = prices[this.value];
+});
+
+function submitBooking() {
+  var btn = document.getElementById('bookBtn');
+  btn.disabled = true;
+  btn.textContent = 'Processing...';
+
+  // Simulate booking (in production, this would call the backend)
+  setTimeout(function() {
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'none';
+    document.getElementById('step3').style.display = 'block';
+    document.getElementById('confirmDetails').innerHTML =
+      '<strong>' + selectedVet.name + '</strong><br>' +
+      document.getElementById('consultDate').value + ' at ' + (selectedTime || 'TBD') + '<br>' +
+      'Pet: ' + document.getElementById('petName').value;
+  }, 1500);
+}
+
+// Set min date to today
+var today = new Date().toISOString().split('T')[0];
+document.getElementById('consultDate').setAttribute('min', today);
+
+renderVets();
+</script>
+{% endblock %}
+{% block help_content %}
+<h3>About Telemedicine</h3>
+<p>Video consultations connect you with licensed vets from home. Great for follow-ups, skin issues, behavioral questions, and triage.</p>
+<h3>When to use telemedicine</h3>
+<ul>
+<li><strong>Good for:</strong> Skin rashes, minor wounds, behavioral questions, medication follow-ups</li>
+<li><strong>Not for:</strong> Emergencies, severe trauma, difficulty breathing — go to an emergency vet</li>
+</ul>
+<div class="help-tip">Have your pet's medical history and any medications ready before the call.</div>
+{% endblock %}

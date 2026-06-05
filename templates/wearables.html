@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Wearable Devices | Pet Vet AI{% endblock %}
+{% block extra_css %}
+<style>
+.wear-container{max-width:900px;margin:0 auto;padding:2rem 1rem;}
+.wear-header{text-align:center;margin-bottom:2rem;}
+.wear-header h1{font-size:1.8rem;margin-bottom:0.5rem;}
+.wear-header p{color:#94a3b8;}
+.device-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1.25rem;margin-bottom:2rem;}
+.device-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:1.5rem;text-align:center;transition:all 0.2s;}
+.device-card:hover{border-color:#10b981;transform:translateY(-2px);}
+.device-card.connected{border-color:#10b981;background:rgba(16,185,129,0.05);}
+.device-icon{font-size:2.5rem;margin-bottom:0.8rem;}
+.device-card h3{font-size:1rem;margin-bottom:0.3rem;}
+.device-card .brand{color:#6366f1;font-size:0.82rem;font-weight:600;margin-bottom:0.5rem;}
+.device-card .features{color:#94a3b8;font-size:0.8rem;line-height:1.5;margin-bottom:1rem;}
+.device-status{font-size:0.75rem;font-weight:600;padding:0.3rem 0.8rem;border-radius:20px;display:inline-block;}
+.status-disconnected{background:rgba(100,116,139,0.2);color:#94a3b8;}
+.status-connected{background:rgba(16,185,129,0.15);color:#10b981;}
+.btn-connect{padding:0.5rem 1.2rem;background:#10b981;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.82rem;margin-top:0.5rem;}
+.btn-connect:hover{background:#059669;}
+.btn-disconnect{background:rgba(239,68,68,0.15);color:#f87171;}
+.data-preview{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1.5rem;margin-top:1.5rem;}
+.data-preview h3{font-size:1rem;margin-bottom:1rem;}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;}
+.metric{background:rgba(255,255,255,0.04);border-radius:10px;padding:1rem;text-align:center;}
+.metric-value{font-size:1.5rem;font-weight:800;color:#10b981;}
+.metric-label{font-size:0.75rem;color:#64748b;margin-top:0.2rem;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wear-container">
+  <div class="wear-header">
+    <h1>📡 Wearable Device Integration</h1>
+    <p>Connect smart collars and health monitors to track your pet's vitals 24/7</p>
+  </div>
+
+  <div class="device-grid">
+    <div class="device-card" id="fitbark">
+      <div class="device-icon">🐕</div>
+      <h3>FitBark</h3>
+      <div class="brand">Activity & Sleep Monitor</div>
+      <div class="features">Activity tracking, sleep quality, calorie burn, behavior alerts, GPS location</div>
+      <span class="device-status status-disconnected" id="fitbark-status">Not Connected</span>
+      <br><button class="btn-connect" onclick="connectDevice('fitbark')">Connect FitBark</button>
+    </div>
+    <div class="device-card" id="whistle">
+      <div class="device-icon">📍</div>
+      <h3>Whistle Health</h3>
+      <div class="brand">GPS + Health Tracker</div>
+      <div class="features">GPS location, activity monitoring, licking/scratching alerts, vet report generation</div>
+      <span class="device-status status-disconnected" id="whistle-status">Not Connected</span>
+      <br><button class="btn-connect" onclick="connectDevice('whistle')">Connect Whistle</button>
+    </div>
+    <div class="device-card" id="fi">
+      <div class="device-icon">🛰️</div>
+      <h3>Fi Series 3</h3>
+      <div class="brand">Smart GPS Collar</div>
+      <div class="features">Real-time GPS, activity tracking, escape alerts, LED night light, 3-month battery</div>
+      <span class="device-status status-disconnected" id="fi-status">Not Connected</span>
+      <br><button class="btn-connect" onclick="connectDevice('fi')">Connect Fi</button>
+    </div>
+    <div class="device-card" id="petpace">
+      <div class="device-icon">❤️</div>
+      <h3>PetPace</h3>
+      <div class="brand">Clinical Health Collar</div>
+      <div class="features">Heart rate, respiration, temperature, pain score, activity, calories, posture analysis</div>
+      <span class="device-status status-disconnected" id="petpace-status">Not Connected</span>
+      <br><button class="btn-connect" onclick="connectDevice('petpace')">Connect PetPace</button>
+    </div>
+    <div class="device-card" id="tractive">
+      <div class="device-icon">🗺️</div>
+      <h3>Tractive GPS</h3>
+      <div class="brand">Health & Location Tracker</div>
+      <div class="features">Live tracking, activity monitoring, sleep analysis, health alerts, works in 175+ countries</div>
+      <span class="device-status status-disconnected" id="tractive-status">Not Connected</span>
+      <br><button class="btn-connect" onclick="connectDevice('tractive')">Connect Tractive</button>
+    </div>
+    <div class="device-card" id="petcube">
+      <div class="device-icon">📷</div>
+      <h3>Petcube Bites 2</h3>
+      <div class="brand">Camera + Treat Dispenser</div>
+      <div class="features">1080p camera, two-way audio, treat dispensing, night vision, AI activity alerts</div>
+      <span class="device-status status-disconnected" id="petcube-status">Not Connected</span>
+      <br><button class="btn-connect" onclick="connectDevice('petcube')">Connect Petcube</button>
+    </div>
+  </div>
+
+  <div class="data-preview">
+    <h3>📊 Health Data Preview</h3>
+    <p style="color:#64748b;font-size:0.85rem;margin-bottom:1rem;">Connect a device above to see real-time health data here</p>
+    <div class="metric-grid">
+      <div class="metric">
+        <div class="metric-value">--</div>
+        <div class="metric-label">Steps Today</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">--</div>
+        <div class="metric-label">Calories Burned</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">--</div>
+        <div class="metric-label">Sleep Hours</div>
+      </div>
+      <div class="metric">
+        <div class="metric-value">--</div>
+        <div class="metric-label">Activity Score</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function connectDevice(deviceType) {
+  fetch('/api/wearables/connect', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({device_type: deviceType})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      // Simulate connection
+      var card = document.getElementById(deviceType);
+      card.classList.add('connected');
+      document.getElementById(deviceType + '-status').className = 'device-status status-connected';
+      document.getElementById(deviceType + '-status').textContent = 'Connected ✓';
+      alert(data.message);
+    }
+  })
+  .catch(function() {
+    alert('Connection failed. Please try again.');
+  });
+}
+</script>
+{% endblock %}
+{% block help_content %}
+<h3>About Wearable Integration</h3>
+<p>Connect your pet's smart collar or health monitor to Pet Vet AI. Get continuous health data, early warning alerts, and share reports with your vet.</p>
+<h3>Supported devices</h3>
+<ul>
+<li><strong>FitBark</strong> — activity & sleep</li>
+<li><strong>Whistle</strong> — GPS + health</li>
+<li><strong>Fi</strong> — GPS smart collar</li>
+<li><strong>PetPace</strong> — clinical-grade vitals</li>
+<li><strong>Tractive</strong> — global GPS tracking</li>
+</ul>
+<div class="help-tip">Wearable data can help your vet spot health trends before symptoms appear.</div>
+{% endblock %}

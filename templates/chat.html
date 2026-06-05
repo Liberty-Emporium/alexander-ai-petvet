@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}AI Vet Chat | Pet Vet AI{% endblock %}
+{% block extra_css %}
+<style>
+.chat-container{max-width:800px;margin:0 auto;padding:2rem 1rem;}
+.chat-header{text-align:center;margin-bottom:2rem;}
+.chat-header h1{font-size:1.8rem;margin-bottom:0.5rem;}
+.chat-header p{color:#94a3b8;}
+.chat-box{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;overflow:hidden;display:flex;flex-direction:column;height:600px;max-height:70vh;}
+.chat-messages{flex:1;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;}
+.chat-message{max-width:80%;padding:0.8rem 1.2rem;border-radius:16px;font-size:0.92rem;line-height:1.55;}
+.chat-message.bot{background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);align-self:flex-start;color:#e2e8f0;border-bottom-left-radius:4px;}
+.chat-message.user{background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);align-self:flex-end;color:#e2e8f0;border-bottom-right-radius:4px;}
+.chat-message .meta{font-size:0.7rem;color:#64748b;margin-top:4px;}
+.chat-input{display:flex;border-top:1px solid rgba(255,255,255,0.08);padding:0.8rem;background:rgba(0,0,0,0.15);}
+.chat-input input{flex:1;padding:0.7rem 1rem;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;font-size:0.9rem;}
+.chat-input input:focus{outline:none;border-color:#10b981;}
+.chat-input button{margin-left:0.5rem;padding:0.7rem 1.2rem;background:#10b981;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-size:0.85rem;transition:background 0.15s;}
+.chat-input button:hover{background:#059669;}
+.chat-input button:disabled{background:#374151;cursor:not-allowed;}
+.typing-indicator{display:flex;gap:4px;padding:0.5rem 0;}
+.typing-indicator span{width:7px;height:7px;background:#64748b;border-radius:50%;animation:typing 1.2s infinite;}
+.typing-indicator span:nth-child(2){animation-delay:0.2s;}
+.typing-indicator span:nth-child(3){animation-delay:0.4s;}
+@keyframes typing{0%,60%,100%{transform:translateY(0);opacity:0.4;}30%{transform:translateY(-6px);opacity:1;}}
+.quick-prompts{display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1rem;}
+.quick-prompt{padding:0.4rem 0.8rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:20px;font-size:0.78rem;color:#94a3b8;cursor:pointer;transition:all 0.15s;}
+.quick-prompt:hover{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:#10b981;}
+.disclaimer-compact{background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:0.6rem 1rem;font-size:0.78rem;color:#f87171;margin-top:1rem;text-align:center;}
+</style>
+{% endblock %}
+{% block content %}
+<div class="chat-container">
+  <div class="chat-header">
+    <h1>🩺 AI Vet Assistant</h1>
+    <p>Describe your pet's symptoms and get expert guidance — like a vet triage nurse in your pocket</p>
+  </div>
+
+  <div class="quick-prompts">
+    <span class="quick-prompt" onclick="usePrompt(this)">🐕 My dog has been limping for 2 days</span>
+    <span class="quick-prompt" onclick="usePrompt(this)">🐈 My cat is vomiting and won't eat</span>
+    <span class="quick-prompt" onclick="usePrompt(this)">🐴 My horse has a swollen leg</span>
+    <span class="quick-prompt" onclick="usePrompt(this)">🦎 My reptile isn't eating and seems lethargic</span>
+    <span class="quick-prompt" onclick="usePrompt(this)">💊 What's the right dosage for my dog's medication?</span>
+    <span class="quick-prompt" onclick="usePrompt(this)">🩹 My pet has a wound — how do I clean it?</span>
+  </div>
+
+  <div class="chat-box">
+    <div class="chat-messages" id="chatMessages">
+      <div class="chat-message bot">
+        Hello! I'm your AI Vet Assistant. 🐾<br><br>
+        I can help you understand your pet's symptoms, advise on urgency, suggest home care, and recommend when to see a real vet.<br><br>
+        <strong>What's going on with your pet?</strong>
+        <div class="meta">AI Vet Assistant • Triage Nurse</div>
+      </div>
+    </div>
+    <div class="chat-input">
+      <input type="text" id="chatInput" placeholder="Describe your pet's symptoms..." onkeydown="if(event.key==='Enter')sendMessage()">
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
+
+  <div class="disclaimer-compact">⚠️ This is AI guidance only — not a substitute for professional veterinary care</div>
+</div>
+
+<script>
+var conversationHistory = [
+  {role: 'system', content: `You are an expert veterinary triage AI assistant. Your role:
+- Ask clarifying questions like a vet triage nurse (duration, severity, other symptoms)
+- Assess urgency: EMERGENCY (go now), URGENT (within 24h), SOON (within a week), MONITOR (home care)
+- Suggest home care steps when appropriate
+- Always recommend seeing a vet for anything serious
+- Be warm, empathetic, and clear
+- If asked about medications, recommend consulting a vet for prescriptions
+- Format responses with clear sections: Assessment, Urgency Level, Recommended Action, Home Care (if applicable)
+- Use plain language — the pet owner may be stressed or panicked
+- Never definitively diagnose — use phrases like "this could be" or "it's important to rule out"`}
+];
+
+function usePrompt(el) {
+  document.getElementById('chatInput').value = el.textContent;
+  document.getElementById('chatInput').focus();
+}
+
+function appendMessage(text, sender) {
+  var msgs = document.getElementById('chatMessages');
+  var div = document.createElement('div');
+  div.className = 'chat-message ' + sender;
+  div.innerHTML = text + '<div class="meta">' + (sender === 'bot' ? 'AI Vet Assistant' : 'You') + '</div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+  var msgs = document.getElementById('chatMessages');
+  var div = document.createElement('div');
+  div.className = 'chat-message bot';
+  div.id = 'typingIndicator';
+  div.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTyping() {
+  var el = document.getElementById('typingIndicator');
+  if (el) el.remove();
+}
+
+function sendMessage() {
+  var input = document.getElementById('chatInput');
+  var btn = document.getElementById('sendBtn');
+  var text = input.value.trim();
+  if (!text) return;
+
+  appendMessage(text, 'user');
+  conversationHistory.push({role: 'user', content: text});
+  input.value = '';
+  btn.disabled = true;
+  showTyping();
+
+  fetch('/api/vet-chat', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({messages: conversationHistory})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    hideTyping();
+    btn.disabled = false;
+    if (data.reply) {
+      appendMessage(data.reply.replace(/\n/g, '<br>'), 'bot');
+      conversationHistory.push({role: 'assistant', content: data.reply});
+    } else {
+      appendMessage('Sorry, I had trouble processing that. Please try again or contact a vet directly.', 'bot');
+    }
+  })
+  .catch(function() {
+    hideTyping();
+    btn.disabled = false;
+    appendMessage('Connection error. Please check your internet and try again.', 'bot');
+  });
+}
+</script>
+{% endblock %}
+{% block help_content %}
+<h3>About AI Vet Chat</h3>
+<p>This is an AI-powered veterinary triage assistant. It asks follow-up questions, assesses urgency, and guides you on next steps.</p>
+<h3>Tips for best results</h3>
+<ul>
+<li><strong>Be specific</strong> — include duration, severity, and what you've already tried</li>
+<li><strong>Mention pet details</strong> — species, breed, age, weight</li>
+<li><strong>Follow up</strong> — the AI asks clarifying questions like a real triage nurse</li>
+</ul>
+<div class="help-tip">Always see a real vet for emergencies. The AI is a first step, not a replacement.</div>
+{% endblock %}

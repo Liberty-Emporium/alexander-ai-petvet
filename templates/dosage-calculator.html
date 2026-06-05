@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Dosage Calculator | Pet Vet AI{% endblock %}
+{% block extra_css %}
+<style>
+.dosage-container{max-width:800px;margin:0 auto;padding:2rem 1rem;}
+.dosage-header{text-align:center;margin-bottom:2rem;}
+.dosage-header h1{font-size:1.8rem;margin-bottom:0.5rem;}
+.dosage-header p{color:#94a3b8;}
+.calc-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:2rem;margin-bottom:1.5rem;}
+.calc-card h2{font-size:1.1rem;margin-bottom:1rem;color:#e2e8f0;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;}
+.form-group{margin-bottom:1rem;}
+.form-group label{display:block;font-weight:600;margin-bottom:0.4rem;color:#e2e8f0;font-size:0.88rem;}
+.form-group input,.form-group select{width:100%;padding:0.7rem;border-radius:10px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.07);color:#fff;font-size:0.9rem;}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#10b981;}
+.med-search-results{position:absolute;background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:10px;max-height:200px;overflow-y:auto;z-index:100;width:100%;display:none;}
+.med-result{padding:0.6rem 1rem;cursor:pointer;border-bottom:1px solid rgba(255,255,255,0.05);font-size:0.85rem;}
+.med-result:hover{background:rgba(16,185,129,0.1);}
+.med-result .med-name{color:#e2e8f0;font-weight:600;}
+.med-result .med-info{color:#64748b;font-size:0.75rem;}
+.result-box{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:12px;padding:1.5rem;display:none;}
+.result-box.visible{display:block;}
+.result-dose{font-size:2rem;font-weight:800;color:#10b981;margin:0.5rem 0;}
+.result-detail{color:#94a3b8;font-size:0.88rem;line-height:1.6;}
+.warning-box{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:1rem;margin-top:1rem;font-size:0.85rem;color:#f87171;}
+.interaction-box{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:1rem;margin-top:1rem;font-size:0.85rem;color:#fbbf24;}
+.btn-calc{width:100%;padding:0.9rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;margin-top:0.5rem;}
+.common-meds{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.75rem;margin-top:1rem;}
+.med-chip{padding:0.5rem 0.8rem;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;font-size:0.8rem;color:#94a3b8;cursor:pointer;transition:all 0.15s;}
+.med-chip:hover{background:rgba(99,102,241,0.1);border-color:#6366f1;color:#a5b4fc;}
+@media(max-width:640px){.form-row{grid-template-columns:1fr;}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="dosage-container">
+  <div class="dosage-header">
+    <h1>💊 Dosage Calculator</h1>
+    <p>Weight-based medication dosing with safety checks — for common veterinary medications</p>
+  </div>
+
+  <div class="calc-card">
+    <h2>Pet Information</h2>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Pet Weight</label>
+        <div style="display:flex;gap:0.5rem;">
+          <input type="number" id="petWeight" placeholder="e.g. 25" style="flex:1;">
+          <select id="weightUnit" style="width:80px;">
+            <option value="kg">kg</option>
+            <option value="lb">lb</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Animal Type</label>
+        <select id="animalType">
+          <option value="dog">🐕 Dog</option>
+          <option value="cat">🐈 Cat</option>
+          <option value="horse">🐴 Horse</option>
+          <option value="bird">🐦 Bird</option>
+          <option value="rabbit">🐰 Rabbit</option>
+          <option value="reptile">🦎 Reptile</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="calc-card" style="position:relative;">
+    <h2>Medication</h2>
+    <div class="form-group">
+      <label>Search Medication</label>
+      <input type="text" id="medSearch" placeholder="Start typing... e.g. Carprofen, Amoxicillin" oninput="searchMeds(this.value)">
+      <div class="med-search-results" id="medResults"></div>
+    </div>
+    <div class="common-meds">
+      <span class="med-chip" onclick="selectMed('carprofen')">Carprofen (Rimadyl)</span>
+      <span class="med-chip" onclick="selectMed('amoxicillin')">Amoxicillin</span>
+      <span class="med-chip" onclick="selectMed('meloxicam')">Meloxicam (Metacam)</span>
+      <span class="med-chip" onclick="selectMed('prednisone')">Prednisone</span>
+      <span class="med-chip" onclick="selectMed('cephalexin')">Cephalexin</span>
+      <span class="med-chip" onclick="selectMed('tramadol')">Tramadol</span>
+      <span class="med-chip" onclick="selectMed('furosemide')">Furosemide</span>
+      <span class="med-chip" onclick="selectMed('insulin')">Insulin</span>
+    </div>
+    <div class="form-row" style="margin-top:1rem;">
+      <div class="form-group">
+        <label>Selected Medication</label>
+        <input type="text" id="selectedMed" placeholder="Select from search or chips above" readonly>
+      </div>
+      <div class="form-group">
+        <label>Concentration (mg/ml or mg/tablet)</label>
+        <input type="number" id="medConcentration" placeholder="e.g. 50">
+      </div>
+    </div>
+    <button class="btn-calc" onclick="calculateDosage()">🧮 Calculate Dosage</button>
+  </div>
+
+  <div class="result-box" id="resultBox">
+    <h2>📋 Calculated Dosage</h2>
+    <div class="result-dose" id="resultDose"></div>
+    <div class="result-detail" id="resultDetail"></div>
+    <div class="warning-box" id="warningBox" style="display:none;"></div>
+    <div class="interaction-box" id="interactionBox" style="display:none;"></div>
+  </div>
+</div>
+
+<script>
+var medications = {
+  carprofen:{name:'Carprofen (Rimadyl)',dogs:{dose:2.2,freq:'twice daily',max:4.4,unit:'mg/kg',concentration:50,form:'tablet',nsaid:true},cats:{dose:1,freq:'once daily (short term)',max:1,unit:'mg/kg',concentration:50,form:'tablet',nsaid:true,warning:'Cats: use with extreme caution, short courses only'},contraindications:['kidney disease','liver disease','GI ulcer','blood disorders'],interactions:['other NSAIDs','corticosteroids','aspirin']},
+  amoxicillin:{name:'Amoxicillin',dogs:{dose:12.5,freq:'twice daily',max:25,unit:'mg/kg',concentration:250,form:'capsule'},cats:{dose:12.5,freq:'twice daily',max:25,unit:'mg/kg',concentration:250,form:'capsule'},horses:{dose:22,freq:'twice daily',max:44,unit:'mg/kg',concentration:500,form:'tablet'},contraindications:['penicillin allergy'],interactions:['methotrexate','probenecid']},
+  meloxicam:{name:'Meloxicam (Metacam)',dogs:{dose:0.1,freq:'once daily',max:0.2,unit:'mg/kg',concentration:1.5,form:'liquid',nsaid:true},cats:{dose:0.05,freq:'once daily (short term)',max:0.1,unit:'mg/kg',concentration:1.5,form:'liquid',nsaid:true,warning:'Cats: FDA-approved for single injection only. Oral use is extra-label and requires vet supervision.'},contraindications:['kidney disease','liver disease','GI ulcer','dehydration'],interactions:['other NSAIDs','corticosteroids','ACE inhibitors']},
+  prednisone:{name:'Prednisone',dogs:{dose:0.5,freq:'once or twice daily',max:2,unit:'mg/kg',concentration:5,form:'tablet',steroid:true},cats:{dose:0.5,freq:'once or twice daily',max:2,unit:'mg/kg',concentration:5,form:'tablet',steroid:true},contraindications:['fungal infection','viral infection','Cushing\'s disease'],interactions:['NSAIDs','diuretics','insulin']},
+  cephalexin:{name:'Cephalexin',dogs:{dose:15,freq:'twice daily',max:30,unit:'mg/kg',concentration:250,form:'capsule'},cats:{dose:15,freq:'twice daily',max:30,unit:'mg/kg',concentration:250,form:'capsule'},contraindications:['cephalosporin allergy'],interactions:['probenecid','warfarin']},
+  tramadol:{name:'Tramadol',dogs:{dose:5,freq:'every 8-12 hours',max:10,unit:'mg/kg',concentration:50,form:'tablet'},cats:{dose:2,freq:'every 12 hours',max:4,unit:'mg/kg',concentration:50,form:'tablet',warning:'Cats: may cause sedation and disorientation'},contraindications:['seizure disorder','MAO inhibitor use'],interactions:['SSRIs','MAO inhibitors','tricyclic antidepressants']},
+  furosemide:{name:'Furosemide (Lasix)',dogs:{dose:2,freq:'every 8-12 hours',max:4,unit:'mg/kg',concentration:40,form:'tablet'},cats:{dose:1,freq:'every 12-24 hours',max:2,unit:'mg/kg',concentration:40,form:'tablet'},contraindications:['kidney failure (anuric)','electrolyte imbalance','dehydration'],interactions:['NSAIDs','aminoglycosides','digoxin']},
+  insulin:{name:'Insulin (Vetsulin)',dogs:{dose:0.5,freq:'twice daily',max:1,unit:'IU/kg',concentration:40,form:'IU/ml'},cats:{dose:0.25,freq:'twice daily',max:0.5,unit:'IU/kg',concentration:40,form:'IU/ml'},contraindications:['hypoglycemia'],interactions:['corticosteroids','beta-blockers','thyroid hormones']},
+};
+
+function searchMeds(query) {
+  var results = document.getElementById('medResults');
+  if (!query || query.length < 2) { results.style.display = 'none'; return; }
+  var matches = Object.entries(medications).filter(function(e) {
+    return e[1].name.toLowerCase().includes(query.toLowerCase());
+  });
+  if (matches.length === 0) { results.style.display = 'none'; return; }
+  results.innerHTML = matches.map(function(e) {
+    return '<div class="med-result" onclick="selectMed(\'' + e[0] + '\')">' +
+      '<div class="med-name">' + e[1].name + '</div>' +
+      '<div class="med-info">Dog: ' + (e[1].dogs ? e[1].doses?.dogs?.dose + ' ' + e[1].dogs.unit : 'N/A') + '</div>' +
+    '</div>';
+  }).join('');
+  results.style.display = 'block';
+}
+
+function selectMed(key) {
+  var med = medications[key];
+  if (!med) return;
+  document.getElementById('selectedMed').value = med.name;
+  document.getElementById('medConcentration').value = (med.dogs || med.cats || {}).concentration || '';
+  document.getElementById('medResults').style.display = 'none';
+  document.getElementById('medSearch').value = med.name;
+}
+
+function calculateDosage() {
+  var weight = parseFloat(document.getElementById('petWeight').value);
+  var unit = document.getElementById('weightUnit').value;
+  var animal = document.getElementById('animalType').value;
+  var medName = document.getElementById('selectedMed').value;
+  var concentration = parseFloat(document.getElementById('medConcentration').value);
+
+  if (!weight || weight <= 0) { alert('Please enter a valid weight'); return; }
+  if (!medName) { alert('Please select a medication'); return; }
+  if (!concentration) { alert('Please enter the medication concentration'); return; }
+
+  // Convert to kg if needed
+  var weightKg = unit === 'lb' ? weight * 0.453592 : weight;
+
+  // Find medication
+  var medKey = Object.keys(medications).find(function(k) { return medications[k].name === medName; });
+  if (!medKey) { alert('Medication not found in database'); return; }
+  var med = medications[medKey];
+  var dosing = med[animal];
+  if (!dosing) { alert('No dosing information for ' + animal + ' for this medication'); return; }
+
+  var totalDose = dosing.dose * weightKg;
+  var maxDose = dosing.max * weightKg;
+  var volume = totalDose / concentration;
+  var tablets = totalDose / concentration;
+
+  var resultDose = document.getElementById('resultDose');
+  var resultDetail = document.getElementById('resultDetail');
+
+  var doseText = '';
+  if (med.form === 'liquid' || dosing.form === 'liquid') {
+    doseText = volume.toFixed(1) + ' ml';
+  } else if (dosing.form === 'IU/ml') {
+    doseText = totalDose.toFixed(1) + ' IU (' + volume.toFixed(1) + ' ml)';
+  } else {
+    doseText = tablets.toFixed(1) + ' tablet(s) (' + totalDose.toFixed(1) + ' mg)';
+  }
+
+  resultDose.textContent = doseText + ' ' + dosing.freq;
+  resultDetail.innerHTML =
+    '<strong>Pet:</strong> ' + animal + ' (' + weightKg.toFixed(1) + ' kg)<br>' +
+    '<strong>Medication:</strong> ' + med.name + '<br>' +
+    '<strong>Dose rate:</strong> ' + dosing.dose + ' ' + dosing.unit + '<br>' +
+    '<strong>Total per dose:</strong> ' + totalDose.toFixed(1) + ' mg<br>' +
+    '<strong>Max daily dose:</strong> ' + (maxDose * (dosing.freq.includes('twice') ? 2 : 1)).toFixed(1) + ' mg<br>' +
+    '<strong>Concentration used:</strong> ' + concentration + ' mg/' + (dosing.form === 'liquid' || dosing.form === 'IU/ml' ? 'ml' : 'tablet');
+
+  // Warnings
+  var warningBox = document.getElementById('warningBox');
+  var warnings = [];
+  if (dosing.warning) warnings.push(dosing.warning);
+  if (totalDose > maxDose) warnings.push('⚠️ Calculated dose exceeds maximum recommended dose!');
+  if (animal === 'cat' && dosing.nsaid) warnings.push('⚠️ NSAIDs in cats require extreme caution and vet supervision');
+  if (animal === 'reptile') warnings.push('⚠️ Reptile dosing is highly variable — always consult a reptile vet');
+  if (animal === 'bird') warnings.push('⚠️ Bird metabolism differs significantly — consult an avian vet');
+  warningBox.style.display = warnings.length ? 'block' : 'none';
+  warningBox.innerHTML = warnings.join('<br>');
+
+  // Interactions
+  var interactionBox = document.getElementById('interactionBox');
+  if (med.interactions && med.interactions.length) {
+    interactionBox.style.display = 'block';
+    interactionBox.innerHTML = '⚠️ <strong>Known interactions:</strong> ' + med.interactions.join(', ');
+  } else {
+    interactionBox.style.display = 'none';
+  }
+
+  document.getElementById('resultBox').classList.add('visible');
+  document.getElementById('resultBox').scrollIntoView({behavior:'smooth'});
+}
+
+// Close search results on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.calc-card')) {
+    document.getElementById('medResults').style.display = 'none';
+  }
+});
+</script>
+{% endblock %}
+{% block help_content %}
+<h3>About Dosage Calculator</h3>
+<p>This tool calculates weight-based medication doses for common veterinary medications. Always confirm with your vet before administering.</p>
+<h3>Safety notes</h3>
+<ul>
+<li><strong>Always verify</strong> — this is a reference tool, not a prescription</li>
+<li><strong>Check contraindications</strong> — warnings appear for known issues</li>
+<li><strong>When in doubt, call your vet</strong> — especially for cats, birds, and reptiles</li>
+</ul>
+<div class="help-tip">Keep a record of all medications your pet takes — share it with every vet you visit.</div>
+{% endblock %}

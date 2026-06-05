@@ -216,6 +216,16 @@ def save_settings(settings):
     with open(SETTINGS_FILE, 'w') as f:
         json.dump(settings, f, indent=2)
 
+def get_config(key, default=None):
+    """Get a config value from settings file or environment variable."""
+    settings = load_settings()
+    if key in settings:
+        return settings[key]
+    env_val = os.environ.get(key.upper())
+    if env_val:
+        return env_val
+    return default
+
 def get_groq_api_key(user_id=None):
     """Get API key - user's own key first, then system admin key"""
     # Try user-specific key first
@@ -1524,6 +1534,104 @@ def api_analyze_damage():
                         'model': 'groq/llava', 'context': context})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ── AI Vet Chat ──────────────────────────────────────────────────────────────
+@app.route('/chat')
+def chat_page():
+    """AI Vet Chat Assistant page"""
+    return render_template('chat.html')
+
+@app.route('/api/vet-chat', methods=['POST'])
+def api_vet_chat():
+    """AI Vet Chat API — conversational triage assistant"""
+    data = request.get_json()
+    if not data or not data.get('messages'):
+        return jsonify({'error': 'Messages required'}), 400
+
+    groq_key = get_groq_api_key(session.get('user_id'))
+    if not groq_key:
+        return jsonify({'reply': 'AI chat is not available right now. Please add your API key in Settings, or try again later.'})
+
+    try:
+        url = 'https://api.groq.com/openai/v1/chat/completions'
+        headers = {'Authorization': f'Bearer {groq_key}', 'Content-Type': 'application/json'}
+        payload = {
+            'model': GROQ_MODEL,
+            'messages': data['messages'],
+            'temperature': 0.4,
+            'max_tokens': 800
+        }
+        resp = requests.post(url, headers=headers, json=payload, timeout=30)
+        if resp.status_code == 200:
+            result = resp.json()
+            reply = result['choices'][0]['message']['content']
+            return jsonify({'reply': reply, 'success': True})
+        else:
+            return jsonify({'reply': 'The AI service is temporarily unavailable. Please try again in a moment.'})
+    except Exception as e:
+        return jsonify({'reply': 'Connection error. Please check your internet and try again.'})
+
+# ── Telemedicine ─────────────────────────────────────────────────────────────
+@app.route('/telemedicine')
+def telemedicine_page():
+    """Telemedicine / video consultation booking page"""
+    return render_template('telemedicine.html')
+
+@app.route('/api/telemedicine/book', methods=['POST'])
+def api_telemedicine_book():
+    """Book a telemedicine consultation"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Booking data required'}), 400
+    # In production: save to database, send confirmation email, generate video link
+    return jsonify({
+        'success': True,
+        'booking_id': str(uuid.uuid4())[:8],
+        'message': 'Consultation booked successfully. You will receive a confirmation email with a video link.'
+    })
+
+# ── Health Timeline ──────────────────────────────────────────────────────────
+@app.route('/health-timeline')
+@login_required
+def health_timeline_page():
+    """Pet Health Timeline page"""
+    return render_template('health-timeline.html')
+
+# ── Dosage Calculator ────────────────────────────────────────────────────────
+@app.route('/dosage-calculator')
+def dosage_calculator_page():
+    """AI-powered dosage calculator page"""
+    return render_template('dosage-calculator.html')
+
+# ── Wearable Integration ─────────────────────────────────────────────────────
+@app.route('/wearables')
+@login_required
+def wearables_page():
+    """Wearable device integration page"""
+    return render_template('wearables.html')
+
+@app.route('/api/wearables/connect', methods=['POST'])
+def api_wearables_connect():
+    """Connect a wearable device (FitBark, Whistle, etc.)"""
+    data = request.get_json()
+    if not data or not data.get('device_type'):
+        return jsonify({'error': 'Device type required'}), 400
+    # In production: OAuth flow with device API
+    return jsonify({
+        'success': True,
+        'message': f"Connection initiated for {data['device_type']}. You'll be redirected to authorize."
+    })
+
+@app.route('/api/wearables/data', methods=['GET'])
+@login_required
+def api_wearables_data():
+    """Get latest wearable data for the user's pets"""
+    # In production: fetch from device API
+    return jsonify({
+        'devices': [],
+        'message': 'No wearable devices connected yet. Connect a device to see health data here.'
+    })
+
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=5000)

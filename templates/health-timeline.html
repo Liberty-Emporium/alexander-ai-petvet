@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Health Timeline | Pet Vet AI{% endblock %}
+{% block extra_css %}
+<style>
+.timeline-container{max-width:900px;margin:0 auto;padding:2rem 1rem;}
+.timeline-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:2rem;flex-wrap:wrap;gap:1rem;}
+.timeline-header h1{font-size:1.6rem;}
+.pet-selector{display:flex;gap:0.5rem;flex-wrap:wrap;}
+.pet-chip{padding:0.5rem 1rem;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:20px;font-size:0.82rem;color:#94a3b8;cursor:pointer;transition:all 0.15s;}
+.pet-chip:hover,.pet-chip.active{background:rgba(16,185,129,0.12);border-color:#10b981;color:#10b981;}
+.btn-add-pet{padding:0.5rem 1rem;background:#10b981;color:#fff;border:none;border-radius:20px;font-size:0.82rem;font-weight:600;cursor:pointer;}
+.timeline{position:relative;padding-left:2rem;}
+.timeline::before{content:'';position:absolute;left:7px;top:0;bottom:0;width:2px;background:rgba(255,255,255,0.1);}
+.timeline-event{position:relative;margin-bottom:1.5rem;padding:1.2rem;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;}
+.timeline-event::before{content:'';position:absolute;left:-2rem;top:1.2rem;width:12px;height:12px;border-radius:50%;background:#10b981;border:2px solid #0a1628;}
+.timeline-event.diagnosis::before{background:#f59e0b;}
+.timeline-event.medication::before{background:#6366f1;}
+.timeline-event.vaccine::before{background:#22c55e;}
+.timeline-event.checkup::before{background:#06b6d4;}
+.timeline-event.emergency::before{background:#ef4444;}
+.timeline-date{font-size:0.75rem;color:#64748b;margin-bottom:0.3rem;}
+.timeline-title{font-weight:700;font-size:1rem;color:#e2e8f0;margin-bottom:0.3rem;}
+.timeline-desc{color:#94a3b8;font-size:0.85rem;line-height:1.5;}
+.timeline-tags{display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;}
+.tag{padding:0.15rem 0.5rem;border-radius:8px;font-size:0.7rem;font-weight:600;}
+.tag.diagnosis{background:rgba(245,158,11,0.15);color:#fbbf24;}
+.tag.medication{background:rgba(99,102,241,0.15);color:#a5b4fc;}
+.tag.vaccine{background:rgba(34,197,94,0.15);color:#4ade80;}
+.tag.checkup{background:rgba(6,182,212,0.15);color:#22d3ee;}
+.tag.emergency{background:rgba(239,68,68,0.15);color:#f87171;}
+.add-event-form{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:1.5rem;margin-top:1.5rem;}
+.add-event-form h3{font-size:1rem;margin-bottom:1rem;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:0.8rem;}
+.form-group{margin-bottom:0.8rem;}
+.form-group label{display:block;font-size:0.82rem;color:#94a3b8;margin-bottom:0.3rem;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:0.6rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#fff;font-size:0.85rem;}
+.form-group textarea{resize:vertical;min-height:60px;}
+.btn-save{padding:0.6rem 1.2rem;background:#10b981;color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:0.85rem;}
+.empty-state{text-align:center;padding:3rem;color:#64748b;}
+.empty-state .icon{font-size:3rem;margin-bottom:1rem;}
+@media(max-width:640px){.form-row{grid-template-columns:1fr;}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="timeline-container">
+  <div class="timeline-header">
+    <h1>📋 Pet Health Timeline</h1>
+    <div class="pet-selector" id="petSelector">
+      <!-- Populated by JS -->
+    </div>
+    <button class="btn-add-pet" onclick="showAddEvent()">+ Add Event</button>
+  </div>
+
+  <div id="timelineContent">
+    <div class="empty-state">
+      <div class="icon">🐾</div>
+      <h3>No pets yet</h3>
+      <p>Add a pet to start tracking their health history</p>
+    </div>
+  </div>
+
+  <div class="add-event-form" id="addEventForm" style="display:none;">
+    <h3>➕ Add Health Event</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Event Type</label>
+        <select id="eventType">
+          <option value="checkup">🏥 Checkup</option>
+          <option value="diagnosis">🔬 Diagnosis</option>
+          <option value="medication">💊 Medication</option>
+          <option value="vaccine">💉 Vaccination</option>
+          <option value="emergency">🚨 Emergency</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <input type="date" id="eventDate">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="eventTitle" placeholder="e.g. Annual checkup, Skin infection diagnosed">
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="eventNotes" placeholder="Details about this event..."></textarea>
+    </div>
+    <button class="btn-save" onclick="saveEvent()">Save Event</button>
+  </div>
+</div>
+
+<script>
+var currentPetId = null;
+var pets = [];
+var timelineEvents = {};
+
+// Load pets
+fetch('/api/pets')
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    pets = data || [];
+    renderPetSelector();
+    if (pets.length > 0) {
+      selectPet(pets[0].id);
+    }
+  });
+
+function renderPetSelector() {
+  var sel = document.getElementById('petSelector');
+  sel.innerHTML = pets.map(function(p) {
+    return '<span class="pet-chip" onclick="selectPet(\'' + p.id + '\')">' + p.name + ' (' + p.species + ')</span>';
+  }).join('');
+}
+
+function selectPet(id) {
+  currentPetId = id;
+  document.querySelectorAll('.pet-chip').forEach(function(el) {
+    el.classList.toggle('active', el.textContent.includes(pets.find(function(p){return p.id===id;})?.name));
+  });
+  loadTimeline(id);
+}
+
+function loadTimeline(petId) {
+  var stored = localStorage.getItem('timeline_' + petId);
+  var events = stored ? JSON.parse(stored) : getDefaultEvents(petId);
+  timelineEvents[petId] = events;
+  renderTimeline(events);
+}
+
+function getDefaultEvents(petId) {
+  var pet = pets.find(function(p) { return p.id === petId; });
+  if (!pet) return [];
+  return [
+    {type:'checkup',date:pet.created_at?.slice(0,10)||new Date().toISOString().slice(0,10),title:pet.name + ' added to Pet Vet AI',notes:'Initial profile created. Species: ' + pet.species + (pet.breed ? ', Breed: ' + pet.breed : '') + (pet.age ? ', Age: ' + pet.age : '')}
+  ];
+}
+
+function renderTimeline(events) {
+  var container = document.getElementById('timelineContent');
+  if (!events || events.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><h3>No health events yet</h3><p>Start tracking your pet\'s health history</p></div>';
+    return;
+  }
+  events.sort(function(a,b) { return new Date(b.date) - new Date(a.date); });
+  container.innerHTML = '<div class="timeline">' + events.map(function(e) {
+    var icons = {checkup:'🏥',diagnosis:'🔬',medication:'💊',vaccine:'💉',emergency:'🚨'};
+    return '<div class="timeline-event ' + e.type + '">' +
+      '<div class="timeline-date">' + formatDate(e.date) + '</div>' +
+      '<div class="timeline-title">' + (icons[e.type]||'📋') + ' ' + e.title + '</div>' +
+      (e.notes ? '<div class="timeline-desc">' + e.notes + '</div>' : '') +
+      '<div class="timeline-tags"><span class="tag ' + e.type + '">' + e.type + '</span></div>' +
+    '</div>';
+  }).join('') + '</div>';
+}
+
+function formatDate(d) {
+  if (!d) return 'Unknown';
+  var date = new Date(d);
+  return date.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+}
+
+function showAddEvent() {
+  if (!currentPetId) { alert('Select a pet first'); return; }
+  document.getElementById('addEventForm').style.display = 'block';
+  document.getElementById('eventDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('addEventForm').scrollIntoView({behavior:'smooth'});
+}
+
+function saveEvent() {
+  var event = {
+    type: document.getElementById('eventType').value,
+    date: document.getElementById('eventDate').value,
+    title: document.getElementById('eventTitle').value,
+    notes: document.getElementById('eventNotes').value,
+  };
+  if (!event.title) { alert('Please enter a title'); return; }
+  if (!timelineEvents[currentPetId]) timelineEvents[currentPetId] = [];
+  timelineEvents[currentPetId].push(event);
+  localStorage.setItem('timeline_' + currentPetId, JSON.stringify(timelineEvents[currentPetId]));
+  renderTimeline(timelineEvents[currentPetId]);
+  document.getElementById('addEventForm').style.display = 'none';
+  document.getElementById('eventTitle').value = '';
+  document.getElementById('eventNotes').value = '';
+}
+</script>
+{% endblock %}
+{% block help_content %}
+<h3>About Health Timeline</h3>
+<p>Track your pet's complete health history — diagnoses, medications, vaccinations, checkups, and emergencies — all in one place.</p>
+<h3>Event types</h3>
+<ul>
+<li><strong>Checkup</strong> — routine vet visits</li>
+<li><strong>Diagnosis</strong> — conditions identified</li>
+<li><strong>Medication</strong> — prescriptions and treatments</li>
+<li><strong>Vaccination</strong> — vaccine records</li>
+<li><strong>Emergency</strong> — urgent care visits</li>
+</ul>
+<div class="help-tip">Share your pet's timeline with your vet before appointments — it helps them provide better care.</div>
+{% endblock %}
