@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pet Vet AI — The AI-Powered Veterinary Platform for Every Pet</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Georgia&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0a1628;
+    --navy-light: #132240;
+    --navy-mid: #1a2d50;
+    --ice: #e8edf5;
+    --cyan: #00d4ff;
+    --cyan-dim: #0098b8;
+    --warm-green: #4ade80;
+    --warm-orange: #fb923c;
+    --white: #ffffff;
+    --text: #c8d6e5;
+    --text-bright: #f0f4f8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--navy);
+    color: var(--text);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(10,22,40,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0,212,255,0.1);
+  }
+  nav .container { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { font-weight: 800; font-size: 1.2rem; color: var(--white); text-decoration: none; }
+  .logo span { color: var(--cyan); }
+  .nav-links { display: flex; gap: 28px; list-style: none; align-items: center; }
+  .nav-links a { color: var(--text); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: var(--cyan); }
+  .nav-cta {
+    background: var(--cyan); color: var(--navy) !important;
+    padding: 8px 20px; border-radius: 8px; font-weight: 600 !important;
+  }
+  .nav-cta:hover { background: var(--warm-green) !important; }
+
+  /* HERO */
+  .hero {
+    padding: 140px 0 80px;
+    text-align: center;
+    background: linear-gradient(180deg, var(--navy) 0%, var(--navy-light) 100%);
+    position: relative;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 600px; background: radial-gradient(ellipse, rgba(0,212,255,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero h1 {
+    font-family: 'Georgia', serif;
+    font-size: clamp(2.2rem, 5vw, 3.6rem);
+    color: var(--white);
+    line-height: 1.15;
+    max-width: 900px;
+    margin: 0 auto 20px;
+  }
+  .hero h1 em {
+    color: var(--cyan);
+    font-style: normal;
+    background: linear-gradient(90deg, var(--cyan), var(--warm-green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p.sub {
+    font-size: 1.15rem;
+    color: var(--text);
+    max-width: 680px;
+    margin: 0 auto 36px;
+  }
+  .hero-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-bottom: 48px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 14px 32px; border-radius: 10px;
+    font-weight: 600; font-size: 1rem;
+    text-decoration: none; transition: all .2s;
+  }
+  .btn-primary { background: var(--cyan); color: var(--navy); }
+  .btn-primary:hover { background: var(--warm-green); transform: translateY(-1px); }
+  .btn-secondary { background: transparent; color: var(--cyan); border: 2px solid var(--cyan); }
+  .btn-secondary:hover { background: rgba(0,212,255,0.08); }
+  .btn-warm { background: var(--warm-orange); color: var(--navy); }
+  .btn-warm:hover { background: #fdba74; transform: translateY(-1px); }
+
+  .stats-bar {
+    display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;
+    border-top: 1px solid rgba(0,212,255,0.15);
+    padding-top: 32px;
+  }
+  .stat { text-align: center; }
+  .stat-num { display: block; font-size: 1.8rem; font-weight: 800; color: var(--cyan); }
+  .stat-label { font-size: 0.82rem; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* SECTIONS */
+  section { padding: 80px 0; }
+  .section-header { text-align: center; margin-bottom: 48px; }
+  .section-header h2 {
+    font-family: 'Georgia', serif;
+    font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+    color: var(--white);
+    margin-bottom: 12px;
+  }
+  .section-header p { color: var(--text); max-width: 560px; margin: 0 auto; }
+  .badge {
+    display: inline-block;
+    background: rgba(0,212,255,0.12); color: var(--cyan);
+    padding: 4px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    margin-bottom: 16px; border: 1px solid rgba(0,212,255,0.2);
+  }
+
+  /* PROBLEM */
+  .problem { background: var(--navy-light); }
+  .pain-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px;
+  }
+  .pain-card {
+    background: var(--navy-mid); border: 1px solid rgba(0,212,255,0.1);
+    border-radius: 14px; padding: 28px;
+  }
+  .pain-icon { font-size: 2rem; margin-bottom: 12px; }
+  .pain-card h3 { color: var(--white); font-size: 1.05rem; margin-bottom: 8px; }
+  .pain-card p { color: var(--text); font-size: 0.93rem; }
+
+  /* SOLUTION / FEATURES */
+  .features { background: var(--navy); }
+  .feature-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 28px;
+  }
+  .feature-card {
+    background: var(--navy-light); border: 1px solid rgba(0,212,255,0.1);
+    border-radius: 16px; padding: 36px; transition: transform .2s, border-color .2s;
+    position: relative; overflow: hidden;
+  }
+  .feature-card:hover { transform: translateY(-4px); border-color: rgba(0,212,255,0.3); }
+  .feature-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--cyan), var(--warm-green));
+    opacity: 0; transition: opacity .2s;
+  }
+  .feature-card:hover::before { opacity: 1; }
+  .feature-icon { font-size: 2.6rem; margin-bottom: 16px; }
+  .feature-card h3 { color: var(--white); font-size: 1.2rem; margin-bottom: 8px; }
+  .feature-card p { color: var(--text); font-size: 0.93rem; margin-bottom: 14px; }
+  .feature-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .feature-tag {
+    font-size: 0.75rem; padding: 3px 10px; border-radius: 12px;
+    background: rgba(0,212,255,0.1); color: var(--cyan); font-weight: 500;
+  }
+  .feature-tag.new { background: rgba(251,146,44,0.15); color: var(--warm-orange); }
+
+  /* HOW IT WORKS */
+  .how { background: var(--navy-light); }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 32px; }
+  .step { text-align: center; }
+  .step-num {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--cyan), var(--warm-green));
+    color: var(--navy); font-weight: 800; font-size: 1.4rem;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 16px;
+  }
+  .step h3 { color: var(--white); font-size: 1.05rem; margin-bottom: 6px; }
+  .step p { font-size: 0.9rem; }
+
+  /* DIFFERENTIATORS */
+  .diff { background: var(--navy); }
+  .diff-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .diff-card {
+    display: flex; gap: 16px; align-items: flex-start;
+    background: var(--navy-light); border-radius: 12px; padding: 24px;
+    border: 1px solid rgba(0,212,255,0.08);
+  }
+  .diff-emoji { font-size: 2rem; flex-shrink: 0; }
+  .diff-card h3 { color: var(--white); font-size: 1rem; margin-bottom: 4px; }
+  .diff-card p { font-size: 0.88rem; color: var(--text); }
+
+  /* PRICING */
+  .pricing { background: var(--navy-light); }
+  .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 24px; }
+  .price-card {
+    background: var(--navy-mid); border: 1px solid rgba(0,212,255,0.12);
+    border-radius: 16px; padding: 36px 28px; text-align: center;
+    transition: transform .2s, border-color .2s;
+  }
+  .price-card:hover { transform: translateY(-3px); }
+  .price-card.featured {
+    border-color: var(--cyan);
+    box-shadow: 0 0 40px rgba(0,212,255,0.1);
+    position: relative;
+  }
+  .price-card.featured::after {
+    content: 'MOST POPULAR';
+    position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    background: var(--cyan); color: var(--navy);
+    font-size: 0.7rem; font-weight: 700; padding: 3px 14px; border-radius: 10px;
+    letter-spacing: 0.5px;
+  }
+  .price-card h3 { color: var(--white); font-size: 1.15rem; margin-bottom: 8px; }
+  .price-amount { font-size: 2.6rem; font-weight: 800; color: var(--cyan); margin: 8px 0; }
+  .price-amount span { font-size: 0.9rem; font-weight: 500; color: var(--text); }
+  .price-features { list-style: none; margin: 20px 0; text-align: left; }
+  .price-features li {
+    padding: 6px 0; font-size: 0.88rem; color: var(--text);
+    display: flex; gap: 8px; align-items: center;
+  }
+  .price-features li::before { content: '✓'; color: var(--warm-green); font-weight: 700; }
+  .price-card .btn { width: 100%; justify-content: center; }
+
+  /* TRUST */
+  .trust { background: var(--navy); text-align: center; }
+  .trust-stats { display: flex; justify-content: center; gap: 48px; flex-wrap: wrap; margin-top: 32px; }
+  .trust-stat { max-width: 280px; }
+  .trust-stat q {
+    display: block; font-size: 1.05rem; color: var(--ice); font-style: italic;
+    margin-bottom: 8px; line-height: 1.5;
+  }
+  .trust-stat cite { font-size: 0.82rem; color: var(--text); font-style: normal; }
+
+  /* CTA */
+  .cta {
+    background: linear-gradient(135deg, var(--navy-mid) 0%, var(--navy-light) 100%);
+    text-align: center;
+    padding: 100px 0;
+  }
+  .cta h2 {
+    font-family: 'Georgia', serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    color: var(--white); margin-bottom: 12px;
+  }
+  .cta p { color: var(--text); margin-bottom: 36px; font-size: 1.1rem; }
+  .cta-buttons { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+
+  /* FOOTER */
+  footer { background: var(--navy); border-top: 1px solid rgba(0,212,255,0.1); padding: 40px 0; }
+  .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 32px; margin-bottom: 32px; }
+  .footer-col h4 { color: var(--white); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 14px; }
+  .footer-col a { display: block; color: var(--text); text-decoration: none; font-size: 0.88rem; padding: 4px 0; transition: color .2s; }
+  .footer-col a:hover { color: var(--cyan); }
+  .footer-bottom {
+    border-top: 1px solid rgba(0,212,255,0.08);
+    padding-top: 24px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+    font-size: 0.82rem; color: var(--text);
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .nav-links { display: none; }
+    .hero { padding: 110px 0 60px; }
+    section { padding: 60px 0; }
+    .stats-bar { gap: 24px; }
+    .stat-num { font-size: 1.4rem; }
+    .trust-stats { gap: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="container">
+    <a href="#" class="logo">Pet Vet<span>AI</span></a>
+    <ul class="nav-links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="#" class="nav-cta">Start Free</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <span class="badge">Now with AI Chat, Telemedicine & More</span>
+    <h1>The <em>AI-Powered</em> Veterinary Platform for Every Pet</h1>
+    <p class="sub">From house pets to farm animals — AI symptom checks, video vet visits, health records, and smart device integration, all in one platform.</p>
+    <div class="hero-buttons">
+      <a href="#" class="btn btn-primary">🐾 Start Free</a>
+      <a href="#" class="btn btn-secondary">▶ Watch Demo</a>
+      <a href="#" class="btn btn-warm">📹 Book a Video Consult</a>
+    </div>
+    <div class="stats-bar">
+      <div class="stat">
+        <span class="stat-num">28K+</span>
+        <span class="stat-label">Vet Practices</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">$43.5B</span>
+        <span class="stat-label">US Market</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">86.9M</span>
+        <span class="stat-label">Pet-Owning Households</span>
+      </div>
+      <div class="stat">
+        <span class="stat-num">8</span>
+        <span class="stat-label">Languages</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="problem" id="problem">
+  <div class="container">
+    <div class="section-header">
+      <span class="badge">The Problem</span>
+      <h2>Veterinary care is broken</h2>
+      <p>Pet owners and vet practices face the same painful problems every day. Here's what we're fixing.</p>
+    </div>
+    <div class="pain-grid">
+      <div class="pain-card">
+        <div class="pain-icon">📅</div>
+        <h3>15–25% No-Shows</h3>
+        <p>Missed appointments waste vet time and leave pet needs unmet. That's millions of empty slots every year.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">📞</div>
+        <h3>40% Calls Unanswered</h3>
+        <p>Pet owners calling with concerns get voicemail. Anxiety builds. Bad outcomes follow.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">💊</div>
+        <h3>40–60% Treatment Declined</h3>
+        <p>Recommended treatments get forgotten or declined due to poor follow-up and communication gaps.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">📄</div>
+        <h3>Paper Records Lost</h3>
+        <p>Medical histories live in filing cabinets, not in the cloud. Duplicate tests. Missed allergies. Wasted time.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">👩‍⚕️</div>
+        <h3>30–40% Staff Turnover</h3>
+        <p>Every departing vet tech takes institutional knowledge with them. Training new staff is expensive and slow.</p>
+      </div>
+      <div class="pain-card">
+        <div class="pain-icon">🌙</div>
+        <h3>2 AM Panic</h3>
+        <p>Pet owners worry when they can't reach a vet. Google searches at 2 AM lead to misinformation and panic.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SOLUTION / FEATURES -->
+<section class="features" id="features">
+  <div class="container">
+    <div class="section-header">
+      <span class="badge">The Solution</span>
+      <h2>Everything your pet needs.<br>All in one platform.</h2>
+      <p>Six powerful features designed for pet owners and vet practices alike.</p>
+    </div>
+    <div class="feature-grid">
+
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>AI Vet Chat Assistant <span style="color:var(--warm-orange);font-size:0.75rem;font-weight:600;">NEW</span></h3>
+        <p>Describe your pet's symptoms and get instant, intelligent guidance — like having a vet nurse in your pocket, 24/7. Asks smart follow-up questions like a real triage nurse.</p>
+        <div class="feature-tags">
+          <span class="feature-tag new">Conversational AI</span>
+          <span class="feature-tag">Triage Guidance</span>
+          <span class="feature-tag">8 Languages</span>
+          <span class="feature-tag">Free: 5/mo</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📹</div>
+        <h3>Video Vet Visits <span style="color:var(--warm-orange);font-size:0.75rem;font-weight:600;">NEW</span></h3>
+        <p>Connect with licensed veterinarians via secure video — no waiting room, no stress. Book same-day or scheduled consultations from your couch.</p>
+        <div class="feature-tags">
+          <span class="feature-tag new">Telemedicine</span>
+          <span class="feature-tag">Same-Day Booking</span>
+          <span class="feature-tag">Secure Video</span>
+          <span class="feature-tag">Prescription Coordination</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📋</div>
+        <h3>Pet Health Timeline <span style="color:var(--warm-orange);font-size:0.75rem;font-weight:600;">NEW</span></h3>
+        <p>Complete digital medical history for every pet. Vaccinations, surgeries, medications, lab results — organized and accessible, forever.</p>
+        <div class="feature-tags">
+          <span class="feature-tag new">Digital Records</span>
+          <span class="feature-tag">Document Upload</span>
+          <span class="feature-tag">Share with Vets</span>
+          <span class="feature-tag">Med Reminders</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">💊</div>
+        <h3>Dosage Calculator <span style="color:var(--warm-orange);font-size:0.75rem;font-weight:600;">NEW</span></h3>
+        <p>Weight-based medication dosing with drug interaction checking — because every gram matters. Species-specific for dogs, cats, horses, and more.</p>
+        <div class="feature-tags">
+          <span class="feature-tag new">Precision Dosing</span>
+          <span class="feature-tag">Drug Interactions</span>
+          <span class="feature-tag">Farm Animals</span>
+          <span class="feature-tag">Print Summary</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📡</div>
+        <h3>Wearable Integration <span style="color:var(--warm-orange);font-size:0.75rem;font-weight:600;">NEW</span></h3>
+        <p>Sync data from FitBark, Whistle, and other pet health wearables. Activity tracking, temperature monitoring, and heart rate trends — all in one dashboard.</p>
+        <div class="feature-tags">
+          <span class="feature-tag new">FitBark API</span>
+          <span class="feature-tag">Whistle</span>
+          <span class="feature-tag">Anomaly Alerts</span>
+          <span class="feature-tag">CSV Import</span>
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">📸</div>
+        <h3>AI Photo Analysis</h3>
+        <p>Computer vision for skin, eye, and ear conditions. Snap a photo, get an instant AI assessment powered by Groq vision models.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Groq Vision</span>
+          <span class="feature-tag">Skin Analysis</span>
+          <span class="feature-tag">Eye & Ear</span>
+          <span class="feature-tag">Instant Results</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="how" id="how">
+  <div class="container">
+    <div class="section-header">
+      <span class="badge">How It Works</span>
+      <h2>Four steps to better pet care</h2>
+      <p>Getting started takes less than 2 minutes.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Sign Up Free</h3>
+        <p>Create your account and add your pets — unlimited pets, no credit card required.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Ask or Book</h3>
+        <p>Chat with our AI assistant about symptoms, or book a video consultation with a licensed vet.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Track Everything</h3>
+        <p>Your pet's health timeline builds automatically from every interaction, visit, and wearable sync.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Stay Connected</h3>
+        <p>Wearable data, medication reminders, and AI check-ins keep you on top of your pet's health.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DIFFERENTIATORS -->
+<section class="diff">
+  <div class="container">
+    <div class="section-header">
+      <span class="badge">Why Pet Vet AI</span>
+      <h2>Built different. Built better.</h2>
+      <p>We're not just another pet app. Here's what sets us apart.</p>
+    </div>
+    <div class="diff-grid">
+      <div class="diff-card">
+        <div class="diff-emoji">🐄</div>
+        <div>
+          <h3>Farm Animals Welcome</h3>
+          <p>Most apps only do dogs and cats. We cover horses, goats, cattle, reptiles, and more.</p>
+        </div>
+      </div>
+      <div class="diff-card">
+        <div class="diff-emoji">🧠</div>
+        <div>
+          <h3>AI Photo Analysis</h3>
+          <p>Powered by Groq vision models for skin, eye, and ear condition assessment.</p>
+        </div>
+      </div>
+      <div class="diff-card">
+        <div class="diff-emoji">🆓</div>
+        <div>
+          <h3>Generous Free Tier</h3>
+          <p>5 AI diagnoses per month — competitors give you 1 or 2, if you're lucky.</p>
+        </div>
+      </div>
+      <div class="diff-card">
+        <div class="diff-emoji">🌍</div>
+        <div>
+          <h3>8 Languages</h3>
+          <p>English, Spanish, French, Portuguese, German, Chinese, Japanese, Arabic.</p>
+        </div>
+      </div>
+      <div class="diff-card">
+        <div class="diff-emoji">📹</div>
+        <div>
+          <h3>Telemedicine Built-In</h3>
+          <p>Not a bolted-on afterthought — video consults are a first-class feature from day one.</p>
+        </div>
+      </div>
+      <div class="diff-card">
+        <div class="diff-emoji">📡</div>
+        <div>
+          <h3>Wearable API</h3>
+          <p>Future-proof architecture supports all major pet health monitoring devices.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="pricing" id="pricing">
+  <div class="container">
+    <div class="section-header">
+      <span class="badge">Pricing</span>
+      <h2>Simple, transparent pricing</h2>
+      <p>Start free. Upgrade when you need more.</p>
+    </div>
+    <div class="pricing-grid">
+
+      <div class="price-card">
+        <h3>Free</h3>
+        <div class="price-amount">$0<span>/mo</span></div>
+        <ul class="price-features">
+          <li>5 AI consultations/month</li>
+          <li>1 pet profile</li>
+          <li>Basic health timeline</li>
+          <li>AI photo analysis</li>
+          <li>Community support</li>
+        </ul>
+        <a href="#" class="btn btn-secondary">Get Started</a>
+      </div>
+
+      <div class="price-card featured">
+        <h3>Pet Parent</h3>
+        <div class="price-amount">$12<span>/mo</span></div>
+        <ul class="price-features">
+          <li>20 AI consultations/month</li>
+          <li>5 pet profiles</li>
+          <li>Video vet booking</li>
+          <li>Dosage calculator</li>
+          <li>Medication reminders</li>
+          <li>Priority support</li>
+        </ul>
+        <a href="#" class="btn btn-primary">Start Free Trial</a>
+      </div>
+
+      <div class="price-card">
+        <h3>Premium</h3>
+        <div class="price-amount">$29<span>/mo</span></div>
+        <ul class="price-features">
+          <li>Unlimited AI consultations</li>
+          <li>Unlimited pets</li>
+          <li>Wearable API access</li>
+          <li>Priority video booking</li>
+          <li>Share records with vets</li>
+          <li>Email & chat support</li>
+        </ul>
+        <a href="#" class="btn btn-secondary">Go Premium</a>
+      </div>
+
+      <div class="price-card">
+        <h3>Vet Practice</h3>
+        <div class="price-amount">Custom</div>
+        <ul class="price-features">
+          <li>Multi-vet accounts</li>
+          <li>EHR integration</li>
+          <li>White-label option</li>
+          <li>Telemedicine platform</li>
+          <li>Dedicated account manager</li>
+          <li>HIPAA compliance tools</li>
+        </ul>
+        <a href="#" class="btn btn-warm">Contact Sales</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<section class="trust">
+  <div class="container">
+    <div class="section-header">
+      <span class="badge">Industry Data</span>
+      <h2>The numbers tell the story</h2>
+    </div>
+    <div class="trust-stats">
+      <div class="trust-stat">
+        <q>300% growth in vet telehealth since 2020</q>
+        <cite>— Industry Research 2026</cite>
+      </div>
+      <div class="trust-stat">
+        <q>73% of pet owners use phones for vet research</q>
+        <cite>— Mobile Usage Study 2026</cite>
+      </div>
+      <div class="trust-stat">
+        <q>40–60% of recommended treatments get declined</q>
+        <cite>— Veterinary Practice Survey</cite>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <div class="container">
+    <h2>Ready to Give Your Pets the Best Care?</h2>
+    <p>Join thousands of pet owners and vet practices using AI to improve pet health.</p>
+    <div class="cta-buttons">
+      <a href="#" class="btn btn-primary">🐾 Start Free Today</a>
+      <a href="#" class="btn btn-secondary">📅 Schedule a Demo</a>
+      <a href="#" class="btn btn-warm">💬 Talk to Our Team</a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Features</h4>
+        <a href="#">AI Chat Assistant</a>
+        <a href="#">Telemedicine</a>
+        <a href="#">Health Records</a>
+        <a href="#">Dosage Calculator</a>
+        <a href="#">Wearable Integration</a>
+        <a href="#">AI Photo Analysis</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="#">Vet Practice Guides</a>
+        <a href="#">Pet Care Tips</a>
+        <a href="#">AI in Veterinary Medicine</a>
+        <a href="#">Blog</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="#">About Us</a>
+        <a href="#">Contact</a>
+        <a href="#">Careers</a>
+        <a href="#">Press</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <a href="#">HIPAA Compliance</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Pet Vet AI — An Alexander AI Solutions Product</span>
+      <span>Made with ❤️ for pets everywhere</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
