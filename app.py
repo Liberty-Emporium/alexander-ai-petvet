@@ -214,6 +214,39 @@ def init_db():
         video_link TEXT DEFAULT '',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
+    db.execute('''CREATE TABLE IF NOT EXISTS health_timeline (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        pet_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        event_date TEXT NOT NULL,
+        title TEXT NOT NULL,
+        notes TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
+    db.execute('''CREATE TABLE IF NOT EXISTS wearable_devices (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        pet_id TEXT NOT NULL,
+        device_type TEXT NOT NULL,
+        device_name TEXT NOT NULL,
+        access_token TEXT DEFAULT '',
+        refresh_token TEXT DEFAULT '',
+        connected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_sync TIMESTAMP,
+        is_active INTEGER DEFAULT 1
+    )''')
+    db.execute('''CREATE TABLE IF NOT EXISTS wearable_data (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT NOT NULL,
+        pet_id TEXT NOT NULL,
+        data_type TEXT NOT NULL,
+        value REAL NOT NULL,
+        unit TEXT DEFAULT '',
+        recorded_at TIMESTAMP NOT NULL,
+        synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )''')
     db.commit()
     db.close()
 
@@ -1677,6 +1710,120 @@ def api_telemedicine_book():
 def health_timeline_page():
     """Pet Health Timeline page"""
     return render_template('health-timeline.html')
+
+@app.route('/api/health-timeline', methods=['GET'])
+@login_required
+def api_health_timeline_get():
+    """Get all timeline events for a pet"""
+    pet_id = request.args.get('pet_id')
+    if not pet_id:
+        return jsonify({'error': 'pet_id required'}), 400
+    
+    user_id = session['user_id']
+    db = get_db()
+    rows = db.execute(
+        '''SELECT * FROM health_timeline 
+           WHERE user_id = ? AND pet_id = ? 
+           ORDER BY event_date DESC, created_at DESC''',
+        (user_id, pet_id)
+    ).fetchall()
+    db.close()
+    
+    events = [dict(r) for r in rows]
+    return jsonify({'events': events, 'count': len(events)})
+
+@app.route('/api/health-timeline', methods=['POST'])
+@login_required
+def api_health_timeline_post():
+    """Add a new health timeline event"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Event data required'}), 400
+    
+    required = ['pet_id', 'event_type', 'event_date', 'title']
+    for field in required:
+        if not data.get(field):
+            return jsonify({'error': f'{field} is required'}), 400
+    
+    user_id = session['user_id']
+    event_id = str(uuid.uuid4())
+    
+    db = get_db()
+    db.execute(
+        '''INSERT INTO health_timeline 
+           (id, user_id, pet_id, event_type, event_date, title, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)''',
+        (
+            event_id,
+            user_id,
+            data['pet_id'],
+            data['event_type'],
+            data['event_date'],
+            data['title'],
+            data.get('notes', '')
+        )
+    )
+    db.commit()
+    
+    row = db.execute('SELECT * FROM health_timeline WHERE id = ?', (event_id,)).fetchone()
+    db.close()
+    
+    return jsonify({'success': True, 'event': dict(row)}), 201
+
+@app.route('/api/health-timeline/<event_id>', methods=['PUT'])
+@login_required
+def api_health_timeline_put(event_id):
+    """Update a health timeline event"""
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Event data required'}), 400
+    
+    user_id = session['user_id']
+    db = get_db()
+    
+    # Verify ownership
+    row = db.execute('SELECT * FROM health_timeline WHERE id = ? AND user_id = ?', (event_id, user_id)).fetchone()
+    if not row:
+        db.close()
+        return jsonify({'error': 'Event not found'}), 404
+    
+    # Update allowed fields
+    updates = []
+    params = []
+    for field in ['event_type', 'event_date', 'title', 'notes']:
+        if field in data:
+            updates.append(f'{field} = ?')
+            params.append(data[field])
+    
+    if updates:
+        updates.append('updated_at = CURRENT_TIMESTAMP')
+        params.append(event_id)
+        db.execute(f'UPDATE health_timeline SET {", ".join(updates)} WHERE id = ?', params)
+        db.commit()
+    
+    row = db.execute('SELECT * FROM health_timeline WHERE id = ?', (event_id,)).fetchone()
+    db.close()
+    
+    return jsonify({'success': True, 'event': dict(row)})
+
+@app.route('/api/health-timeline/<event_id>', methods=['DELETE'])
+@login_required
+def api_health_timeline_delete(event_id):
+    """Delete a health timeline event"""
+    user_id = session['user_id']
+    db = get_db()
+    
+    # Verify ownership
+    row = db.execute('SELECT * FROM health_timeline WHERE id = ? AND user_id = ?', (event_id, user_id)).fetchone()
+    if not row:
+        db.close()
+        return jsonify({'error': 'Event not found'}), 404
+    
+    db.execute('DELETE FROM health_timeline WHERE id = ?', (event_id,))
+    db.commit()
+    db.close()
+    
+    return jsonify({'success': True, 'message': 'Event deleted'})
 
 # ── Dosage Calculator ────────────────────────────────────────────────────────
 @app.route('/dosage-calculator')
